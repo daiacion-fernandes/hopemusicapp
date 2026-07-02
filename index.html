@@ -7,12 +7,32 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC5lRBAHKRJSYP_d4Iv780GSl2rx5Nk81M",
+      authDomain: "hope-music-app-b0c8f.firebaseapp.com",
+      projectId: "hope-music-app-b0c8f",
+      storageBucket: "hope-music-app-b0c8f.firebasestorage.app",
+      messagingSenderId: "873732380506",
+      appId: "1:873732380506:web:ef67b0f6756d917e6f8563"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    window.__db = db;
+    window.__firebase = { collection, onSnapshot, addDoc, deleteDoc, doc, setDoc };
+    window.__firebaseReady = true;
+    window.dispatchEvent(new Event("firebaseReady"));
+  </script>
   <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: 'Segoe UI', sans-serif; }</style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect } = React;
+const { useState, useEffect, useCallback } = React;
 const SENHA = "221938";
 
 const NAV = [
@@ -29,45 +49,50 @@ const NAV = [
 ];
 
 const C = { navy:"#1e3a5f", offwhite:"#f7f5f0", card:"#ffffff", border:"#e2ddd5", text:"#1a2a3a", muted:"#7a8898", accent:"#2d5a9e", green:"#3d7a58", red:"#c0392b", gold:"#b8860b", soft:"#eef2f8" };
-const uid = () => Math.random().toString(36).slice(2,8);
 const fmtDate = d => { if(!d) return ""; const [y,m,day]=d.split("-"); return `${day}/${m}/${y}`; };
 const monthName = m => ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][m-1];
 const today = () => new Date().toISOString().slice(0,10);
 
-const initData = {
-  integrantes: [
-    { id:uid(), nome:"Daia", funcao:"Direção / Vocal" },
-    { id:uid(), nome:"Lucas", funcao:"Violão" },
-    { id:uid(), nome:"Pedro", funcao:"Bateria" },
-    { id:uid(), nome:"Ana", funcao:"Vocal" },
-  ],
-  repertorio: [
-    { id:uid(), nome:"Bondade de Deus", artista:"Bethel Music", tom:"A" },
-    { id:uid(), nome:"Oceanos", artista:"Hillsong", tom:"G" },
-    { id:uid(), nome:"Santo Espírito", artista:"Hillsong", tom:"D" },
-  ],
-  playlist: [
-    { id:uid(), nome:"Oceanos", artista:"Hillsong", tom:"G", bpm:"72", status:"ensaiando", link:"" },
-    { id:uid(), nome:"Bondade de Deus", artista:"Bethel Music", tom:"A", bpm:"68", status:"concluída", link:"" },
-  ],
-  escala: [{ id:uid(), data:"2025-07-06", culto:"Culto Dominical", membros:[{nome:"Daia",funcao:"Direção/Vocal"},{nome:"Lucas",funcao:"Violão"},{nome:"Pedro",funcao:"Bateria"}] }],
-  ensaios: [{ id:uid(), data:"2025-07-04", hora:"18:00", local:"Igreja", musicas:"Oceanos, Bondade de Deus", obs:"Focar na harmonia vocal" }],
-  setlist: [{ id:uid(), data:"2025-07-06", culto:"Dominical 19h", musicas:[{nome:"Bondade de Deus",tom:"A",tempo:"entrada"},{nome:"Oceanos",tom:"G",tempo:"adoração"}] }],
-  vocal: [{ id:uid(), membro:"Daia", extensao:"Mezzo-soprano (A2–G5)", obs:"Evitar notas abaixo de B3 sem aquecimento.", aquecimento:"Lip trill 5 min → escalas em terças" }],
-  comunicados: [{ id:uid(), titulo:"Ensaio extra — 12 de julho", data:"2025-07-01", prioridade:"alta", texto:"Ensaio especial sábado dia 12 às 15h. Presença obrigatória." }],
-  devocionais: [{ id:uid(), titulo:"Adoração com integridade", referencia:"Sl 24:3-4", data:"2025-07-01", texto:"Quem pode subir ao monte do Senhor? O de mãos limpas e coração puro." }],
-  aniversariantes: [
-    { id:uid(), nome:"Lucas", data:"1990-07-14", funcao:"Violão", contato:"" },
-    { id:uid(), nome:"Ana", data:"1995-03-22", funcao:"Vocal", contato:"" },
-    { id:uid(), nome:"Pedro", data:"1988-11-05", funcao:"Bateria", contato:"" },
-  ],
+// Firebase helpers
+const useCollection = (colName) => {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (!window.__firebaseReady) {
+      const handler = () => startListen();
+      window.addEventListener("firebaseReady", handler);
+      return () => window.removeEventListener("firebaseReady", handler);
+    }
+    startListen();
+    function startListen() {
+      const { collection, onSnapshot } = window.__firebase;
+      const db = window.__db;
+      const unsub = onSnapshot(collection(db, colName), snap => {
+        setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setLoading(false);
+      });
+      return unsub;
+    }
+  }, [colName]);
+  return [items, loading];
 };
 
-const loadData = () => {
-  try { const s=localStorage.getItem("hopemusic_data"); return s?JSON.parse(s):initData; } catch { return initData; }
+const addItem = async (colName, data) => {
+  const { collection, addDoc } = window.__firebase;
+  await addDoc(collection(window.__db, colName), data);
 };
 
-// UI
+const delItem = async (colName, id) => {
+  const { doc, deleteDoc } = window.__firebase;
+  await deleteDoc(doc(window.__db, colName, id));
+};
+
+const updateItem = async (colName, id, data) => {
+  const { doc, setDoc } = window.__firebase;
+  await setDoc(doc(window.__db, colName, id), data, { merge: true });
+};
+
+// UI Components
 const Badge = ({label,color}) => <span style={{background:color+"22",color,border:`1px solid ${color}44`,borderRadius:50,padding:"2px 10px",fontSize:11,fontWeight:700}}>{label}</span>;
 const Btn = ({children,onClick,variant="primary",small}) => {
   const s={primary:{background:C.navy,color:"#fff"},danger:{background:C.red,color:"#fff"},ghost:{background:"transparent",color:C.navy,border:`1px solid ${C.navy}`}};
@@ -115,18 +140,19 @@ const SH = ({title,icon,action,sub}) => (
   </div>
 );
 const Empty = ({msg}) => <p style={{color:C.muted,textAlign:"center",padding:"40px 0",fontSize:14}}>{msg}</p>;
+const Loading = () => <p style={{color:C.muted,textAlign:"center",padding:"40px 0",fontSize:14}}>Carregando... 🔄</p>;
 
 function LoginModal({onClose,onSuccess}) {
   const [val,setVal]=useState(""); const [erro,setErro]=useState(false);
   const tentar=()=>{if(val===SENHA){onSuccess();onClose();}else{setErro(true);setVal("");}};
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
-      <div style={{background:"#fff",borderRadius:20,padding:32,maxWidth:340,width:"100%",textAlign:"center",boxShadow:"0 8px 40px rgba(0,0,0,0.15)"}}>
+      <div style={{background:"#fff",borderRadius:20,padding:32,maxWidth:340,width:"100%",textAlign:"center"}}>
         <div style={{fontSize:40,marginBottom:12}}>🔒</div>
         <h3 style={{color:C.navy,fontSize:18,fontWeight:800,marginBottom:6}}>Área restrita</h3>
         <p style={{color:C.muted,fontSize:13,marginBottom:20}}>Digite a senha para editar o app</p>
         <input type="password" value={val} onChange={e=>{setVal(e.target.value);setErro(false);}} onKeyDown={e=>e.key==="Enter"&&tentar()} placeholder="Senha" style={{width:"100%",border:`2px solid ${erro?C.red:C.border}`,borderRadius:10,padding:"10px 14px",fontSize:16,color:C.text,outline:"none",textAlign:"center",marginBottom:8}}/>
-        {erro&&<p style={{color:C.red,fontSize:12,marginBottom:8}}>Senha incorreta. Tente novamente.</p>}
+        {erro&&<p style={{color:C.red,fontSize:12,marginBottom:8}}>Senha incorreta.</p>}
         <div style={{display:"flex",gap:8,marginTop:12}}>
           <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
           <Btn onClick={tentar}>Entrar</Btn>
@@ -136,19 +162,19 @@ function LoginModal({onClose,onSuccess}) {
   );
 }
 
-// Modules
-function Integrantes({data,setData,isAdmin,requireAdmin}) {
+function Integrantes({isAdmin,requireAdmin}) {
+  const [items,loading]=useCollection("integrantes");
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({nome:"",funcao:""});
-  const save=()=>{if(!form.nome)return;setData(d=>({...d,integrantes:[...d.integrantes,{...form,id:uid()}]}));setForm({nome:"",funcao:""});setModal(false);};
-  const del=id=>requireAdmin(()=>setData(d=>({...d,integrantes:d.integrantes.filter(x=>x.id!==id)})));
+  const save=async()=>{if(!form.nome)return;await addItem("integrantes",form);setForm({nome:"",funcao:""});setModal(false);};
+  const del=id=>requireAdmin(()=>delItem("integrantes",id));
   const colors=["#1e3a5f","#3d7a58","#9B59B6","#b8860b","#c0392b","#2d5a9e","#7B68EE","#8B4513"];
   return (
     <div>
       <SH title="Integrantes" icon="👥" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Adicionar</Btn>}/>
-      {data.integrantes.length===0&&<Empty msg="Nenhum integrante cadastrado."/>}
+      {loading?<Loading/>:items.length===0?<Empty msg="Nenhum integrante cadastrado."/>:
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:14}}>
-        {data.integrantes.map((m,i)=>(
+        {items.map((m,i)=>(
           <Card key={m.id} style={{textAlign:"center",position:"relative"}}>
             {isAdmin&&<button onClick={()=>del(m.id)} style={{position:"absolute",top:10,right:10,background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:14}}>✕</button>}
             <div style={{width:48,height:48,borderRadius:"50%",background:colors[i%colors.length]+"22",border:`2px solid ${colors[i%colors.length]}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,margin:"0 auto 10px"}}>🎵</div>
@@ -156,11 +182,11 @@ function Integrantes({data,setData,isAdmin,requireAdmin}) {
             <Badge label={m.funcao} color={colors[i%colors.length]}/>
           </Card>
         ))}
-      </div>
+      </div>}
       {modal&&<Modal title="Novo Integrante" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Input label="Nome" value={form.nome} onChange={v=>setForm(f=>({...f,nome:v}))}/>
-          <Input label="Função no ministério" value={form.funcao} onChange={v=>setForm(f=>({...f,funcao:v}))} placeholder="Ex: Vocal, Violão, Bateria..."/>
+          <Input label="Função no ministério" value={form.funcao} onChange={v=>setForm(f=>({...f,funcao:v}))} placeholder="Ex: Vocal, Violão..."/>
           <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn><Btn onClick={save}>Salvar</Btn></div>
         </div>
       </Modal>}
@@ -168,19 +194,20 @@ function Integrantes({data,setData,isAdmin,requireAdmin}) {
   );
 }
 
-function Repertorio({data,setData,isAdmin,requireAdmin}) {
+function Repertorio({isAdmin,requireAdmin}) {
+  const [items,loading]=useCollection("repertorio");
   const [modal,setModal]=useState(false);
   const [busca,setBusca]=useState("");
   const [form,setForm]=useState({nome:"",artista:"",tom:""});
-  const save=()=>{if(!form.nome)return;setData(d=>({...d,repertorio:[...d.repertorio,{...form,id:uid()}]}));setForm({nome:"",artista:"",tom:""});setModal(false);};
-  const del=id=>requireAdmin(()=>setData(d=>({...d,repertorio:d.repertorio.filter(x=>x.id!==id)})));
-  const sorted=[...data.repertorio].filter(m=>m.nome.toLowerCase().includes(busca.toLowerCase())||m.artista?.toLowerCase().includes(busca.toLowerCase())).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+  const save=async()=>{if(!form.nome)return;await addItem("repertorio",form);setForm({nome:"",artista:"",tom:""});setModal(false);};
+  const del=id=>requireAdmin(()=>delItem("repertorio",id));
+  const sorted=[...items].filter(m=>m.nome?.toLowerCase().includes(busca.toLowerCase())||m.artista?.toLowerCase().includes(busca.toLowerCase())).sort((a,b)=>a.nome?.localeCompare(b.nome,"pt-BR"));
   const tC=t=>({A:C.navy,B:"#6B21A8",C:C.green,D:"#b8860b",E:C.red,F:"#0891b2",G:"#7B68EE"}[t?.charAt(0)]||C.muted);
   return (
     <div>
-      <SH title="Repertório Geral" icon="🎼" sub={`${data.repertorio.length} música${data.repertorio.length!==1?"s":""} · ordem alfabética`} action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Adicionar</Btn>}/>
+      <SH title="Repertório Geral" icon="🎼" sub={`${items.length} música${items.length!==1?"s":""} · ordem alfabética`} action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Adicionar</Btn>}/>
       <div style={{marginBottom:16}}><input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="🔍 Buscar música ou artista..." style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:14,color:C.text,outline:"none",background:"#fff"}}/></div>
-      {sorted.length===0&&<Empty msg="Nenhuma música encontrada."/>}
+      {loading?<Loading/>:sorted.length===0?<Empty msg="Nenhuma música encontrada."/>:
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {sorted.map((m,i)=>(
           <Card key={m.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"14px 18px"}}>
@@ -195,7 +222,7 @@ function Repertorio({data,setData,isAdmin,requireAdmin}) {
             {isAdmin&&<Btn small variant="danger" onClick={()=>del(m.id)}>✕</Btn>}
           </Card>
         ))}
-      </div>
+      </div>}
       {modal&&<Modal title="Nova Música no Repertório" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Input label="Nome da música" value={form.nome} onChange={v=>setForm(f=>({...f,nome:v}))}/>
@@ -208,19 +235,20 @@ function Repertorio({data,setData,isAdmin,requireAdmin}) {
   );
 }
 
-function Playlist({data,setData,isAdmin,requireAdmin}) {
+function Playlist({isAdmin,requireAdmin}) {
+  const [items,loading]=useCollection("playlist");
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({nome:"",artista:"",tom:"",bpm:"",status:"ensaiando",link:""});
-  const save=()=>{if(!form.nome)return;setData(d=>({...d,playlist:[...d.playlist,{...form,id:uid()}]}));setForm({nome:"",artista:"",tom:"",bpm:"",status:"ensaiando",link:""});setModal(false);};
-  const del=id=>requireAdmin(()=>setData(d=>({...d,playlist:d.playlist.filter(x=>x.id!==id)})));
-  const toggle=id=>requireAdmin(()=>setData(d=>({...d,playlist:d.playlist.map(x=>x.id===id?{...x,status:x.status==="concluída"?"ensaiando":"concluída"}:x)})));
+  const save=async()=>{if(!form.nome)return;await addItem("playlist",form);setForm({nome:"",artista:"",tom:"",bpm:"",status:"ensaiando",link:""});setModal(false);};
+  const del=id=>requireAdmin(()=>delItem("playlist",id));
+  const toggle=async(item)=>requireAdmin(()=>updateItem("playlist",item.id,{status:item.status==="concluída"?"ensaiando":"concluída"}));
   const sC=s=>s==="concluída"?C.green:C.gold;
   return (
     <div>
       <SH title="Playlist para Tirar" icon="🎵" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Adicionar</Btn>}/>
-      {data.playlist.length===0&&<Empty msg="Nenhuma música cadastrada."/>}
+      {loading?<Loading/>:items.length===0?<Empty msg="Nenhuma música cadastrada."/>:
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {data.playlist.map(m=>(
+        {items.map(m=>(
           <Card key={m.id}>
             <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,flexWrap:"wrap"}}>
               <div style={{flex:1}}>
@@ -230,18 +258,18 @@ function Playlist({data,setData,isAdmin,requireAdmin}) {
               </div>
               <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
                 <Badge label={m.status==="concluída"?"✓ Concluída":"Ensaiando"} color={sC(m.status)}/>
-                {isAdmin&&<><Btn small variant="ghost" onClick={()=>toggle(m.id)}>{m.status==="concluída"?"Reabrir":"Concluir"}</Btn><Btn small variant="danger" onClick={()=>del(m.id)}>✕</Btn></>}
+                {isAdmin&&<><Btn small variant="ghost" onClick={()=>toggle(m)}>{m.status==="concluída"?"Reabrir":"Concluir"}</Btn><Btn small variant="danger" onClick={()=>del(m.id)}>✕</Btn></>}
               </div>
             </div>
           </Card>
         ))}
-      </div>
+      </div>}
       {modal&&<Modal title="Nova Música" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Input label="Nome da música" value={form.nome} onChange={v=>setForm(f=>({...f,nome:v}))}/>
           <Input label="Artista" value={form.artista} onChange={v=>setForm(f=>({...f,artista:v}))}/>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <Input label="Tom" value={form.tom} onChange={v=>setForm(f=>({...f,tom:v}))} placeholder="Ex: G, Am"/>
+            <Input label="Tom" value={form.tom} onChange={v=>setForm(f=>({...f,tom:v}))} placeholder="Ex: G"/>
             <Input label="BPM" value={form.bpm} onChange={v=>setForm(f=>({...f,bpm:v}))}/>
           </div>
           <Input label="Link" value={form.link} onChange={v=>setForm(f=>({...f,link:v}))}/>
@@ -253,27 +281,28 @@ function Playlist({data,setData,isAdmin,requireAdmin}) {
   );
 }
 
-function Escala({data,setData,isAdmin,requireAdmin}) {
+function Escala({isAdmin,requireAdmin}) {
+  const [items,loading]=useCollection("escala");
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({data:today(),culto:"",membros:[{nome:"",funcao:""}]});
   const addM=()=>setForm(f=>({...f,membros:[...f.membros,{nome:"",funcao:""}]}));
   const updM=(i,k,v)=>setForm(f=>({...f,membros:f.membros.map((m,idx)=>idx===i?{...m,[k]:v}:m)}));
   const remM=i=>setForm(f=>({...f,membros:f.membros.filter((_,idx)=>idx!==i)}));
-  const save=()=>{if(!form.culto)return;setData(d=>({...d,escala:[...d.escala,{...form,id:uid()}]}));setForm({data:today(),culto:"",membros:[{nome:"",funcao:""}]});setModal(false);};
-  const del=id=>requireAdmin(()=>setData(d=>({...d,escala:d.escala.filter(x=>x.id!==id)})));
+  const save=async()=>{if(!form.culto)return;await addItem("escala",form);setForm({data:today(),culto:"",membros:[{nome:"",funcao:""}]});setModal(false);};
+  const del=id=>requireAdmin(()=>delItem("escala",id));
   return (
     <div>
       <SH title="Escala da Equipe" icon="📅" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Nova escala</Btn>}/>
-      {data.escala.length===0&&<Empty msg="Nenhuma escala cadastrada."/>}
+      {loading?<Loading/>:items.length===0?<Empty msg="Nenhuma escala cadastrada."/>:
       <div style={{display:"flex",flexDirection:"column",gap:14}}>
-        {data.escala.sort((a,b)=>a.data<b.data?-1:1).map(e=>(
+        {[...items].sort((a,b)=>a.data<b.data?-1:1).map(e=>(
           <Card key={e.id}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
               <div><div style={{fontSize:13,color:C.muted,fontWeight:600}}>{fmtDate(e.data)}</div><div style={{fontWeight:800,color:C.navy,fontSize:16}}>{e.culto}</div></div>
               {isAdmin&&<Btn small variant="danger" onClick={()=>del(e.id)}>✕</Btn>}
             </div>
             <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-              {e.membros.map((m,i)=>(
+              {(e.membros||[]).map((m,i)=>(
                 <div key={i} style={{background:C.soft,borderRadius:8,padding:"8px 14px"}}>
                   <div style={{fontWeight:700,fontSize:14,color:C.text}}>{m.nome}</div>
                   <div style={{fontSize:11,color:C.accent,fontWeight:600}}>{m.funcao}</div>
@@ -282,7 +311,7 @@ function Escala({data,setData,isAdmin,requireAdmin}) {
             </div>
           </Card>
         ))}
-      </div>
+      </div>}
       {modal&&<Modal title="Nova Escala" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -307,17 +336,18 @@ function Escala({data,setData,isAdmin,requireAdmin}) {
   );
 }
 
-function Ensaios({data,setData,isAdmin,requireAdmin}) {
+function Ensaios({isAdmin,requireAdmin}) {
+  const [items,loading]=useCollection("ensaios");
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({data:today(),hora:"18:00",local:"Igreja",musicas:"",obs:""});
-  const save=()=>{if(!form.data)return;setData(d=>({...d,ensaios:[...d.ensaios,{...form,id:uid()}]}));setForm({data:today(),hora:"18:00",local:"Igreja",musicas:"",obs:""});setModal(false);};
-  const del=id=>requireAdmin(()=>setData(d=>({...d,ensaios:d.ensaios.filter(x=>x.id!==id)})));
+  const save=async()=>{if(!form.data)return;await addItem("ensaios",form);setForm({data:today(),hora:"18:00",local:"Igreja",musicas:"",obs:""});setModal(false);};
+  const del=id=>requireAdmin(()=>delItem("ensaios",id));
   return (
     <div>
       <SH title="Ensaios" icon="🎸" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Novo ensaio</Btn>}/>
-      {data.ensaios.length===0&&<Empty msg="Nenhum ensaio cadastrado."/>}
+      {loading?<Loading/>:items.length===0?<Empty msg="Nenhum ensaio cadastrado."/>:
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
-        {data.ensaios.sort((a,b)=>a.data<b.data?-1:1).map(e=>(
+        {[...items].sort((a,b)=>a.data<b.data?-1:1).map(e=>(
           <Card key={e.id}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
               <div style={{flex:1}}>
@@ -331,7 +361,7 @@ function Ensaios({data,setData,isAdmin,requireAdmin}) {
             </div>
           </Card>
         ))}
-      </div>
+      </div>}
       {modal&&<Modal title="Novo Ensaio" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -348,28 +378,29 @@ function Ensaios({data,setData,isAdmin,requireAdmin}) {
   );
 }
 
-function Setlist({data,setData,isAdmin,requireAdmin}) {
+function Setlist({isAdmin,requireAdmin}) {
+  const [items,loading]=useCollection("setlist");
   const [modal,setModal]=useState(false);
   const [view,setView]=useState(null);
   const [form,setForm]=useState({data:today(),culto:"",musicas:[{nome:"",tom:"",tempo:""}]});
   const addM=()=>setForm(f=>({...f,musicas:[...f.musicas,{nome:"",tom:"",tempo:""}]}));
   const updM=(i,k,v)=>setForm(f=>({...f,musicas:f.musicas.map((m,idx)=>idx===i?{...m,[k]:v}:m)}));
   const remM=i=>setForm(f=>({...f,musicas:f.musicas.filter((_,idx)=>idx!==i)}));
-  const save=()=>{if(!form.culto)return;setData(d=>({...d,setlist:[...d.setlist,{...form,id:uid()}]}));setForm({data:today(),culto:"",musicas:[{nome:"",tom:"",tempo:""}]});setModal(false);};
-  const del=id=>requireAdmin(()=>setData(d=>({...d,setlist:d.setlist.filter(x=>x.id!==id)})));
-  const tC=t=>({"entrada":"#2d5a9e","adoração":C.green,"ministração":"#9B59B6","oferta":C.gold,"encerramento":C.muted}[t]||C.muted);
+  const save=async()=>{if(!form.culto)return;await addItem("setlist",form);setForm({data:today(),culto:"",musicas:[{nome:"",tom:"",tempo:""}]});setModal(false);};
+  const del=id=>requireAdmin(()=>delItem("setlist",id));
+  const tC=t=>({"entrada":"#2d5a9e","adoração":C.green,"ministração":"#9B59B6","oferta":C.gold}[t]||C.muted);
   return (
     <div>
       <SH title="Setlist Culto" icon="📋" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Novo setlist</Btn>}/>
-      {data.setlist.length===0&&<Empty msg="Nenhum setlist cadastrado."/>}
+      {loading?<Loading/>:items.length===0?<Empty msg="Nenhum setlist cadastrado."/>:
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
-        {data.setlist.sort((a,b)=>a.data<b.data?-1:1).map(s=>(
+        {[...items].sort((a,b)=>a.data<b.data?-1:1).map(s=>(
           <Card key={s.id}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div onClick={()=>setView(s)} style={{cursor:"pointer",flex:1}}>
                 <div style={{fontSize:13,color:C.muted}}>{fmtDate(s.data)}</div>
                 <div style={{fontWeight:800,color:C.navy,fontSize:16}}>{s.culto}</div>
-                <div style={{fontSize:13,color:C.muted,marginTop:4}}>{s.musicas.length} música{s.musicas.length!==1?"s":""}</div>
+                <div style={{fontSize:13,color:C.muted,marginTop:4}}>{(s.musicas||[]).length} música{(s.musicas||[]).length!==1?"s":""}</div>
               </div>
               <div style={{display:"flex",gap:8}}>
                 <Btn small variant="ghost" onClick={()=>setView(s)}>Ver</Btn>
@@ -378,10 +409,10 @@ function Setlist({data,setData,isAdmin,requireAdmin}) {
             </div>
           </Card>
         ))}
-      </div>
+      </div>}
       {view&&<Modal title={`Setlist — ${view.culto}`} onClose={()=>setView(null)}>
         <div style={{fontSize:13,color:C.muted,marginBottom:16}}>{fmtDate(view.data)}</div>
-        {view.musicas.map((m,i)=>(
+        {(view.musicas||[]).map((m,i)=>(
           <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:`1px solid ${C.border}`}}>
             <span style={{color:C.muted,fontSize:13,minWidth:20}}>{i+1}.</span>
             <div style={{flex:1}}><div style={{fontWeight:700,color:C.text}}>{m.nome}</div>{m.tom&&<div style={{fontSize:12,color:C.muted}}>Tom: {m.tom}</div>}</div>
@@ -414,17 +445,18 @@ function Setlist({data,setData,isAdmin,requireAdmin}) {
   );
 }
 
-function Vocal({data,setData,isAdmin,requireAdmin}) {
+function Vocal({isAdmin,requireAdmin}) {
+  const [items,loading]=useCollection("vocal");
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({membro:"",extensao:"",obs:"",aquecimento:""});
-  const save=()=>{if(!form.membro)return;setData(d=>({...d,vocal:[...d.vocal,{...form,id:uid()}]}));setForm({membro:"",extensao:"",obs:"",aquecimento:""});setModal(false);};
-  const del=id=>requireAdmin(()=>setData(d=>({...d,vocal:d.vocal.filter(x=>x.id!==id)})));
+  const save=async()=>{if(!form.membro)return;await addItem("vocal",form);setForm({membro:"",extensao:"",obs:"",aquecimento:""});setModal(false);};
+  const del=id=>requireAdmin(()=>delItem("vocal",id));
   return (
     <div>
       <SH title="Área Vocal" icon="🎤" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Adicionar</Btn>}/>
-      {data.vocal.length===0&&<Empty msg="Nenhum perfil vocal cadastrado."/>}
+      {loading?<Loading/>:items.length===0?<Empty msg="Nenhum perfil vocal cadastrado."/>:
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:14}}>
-        {data.vocal.map(v=>(
+        {items.map(v=>(
           <Card key={v.id}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -437,7 +469,7 @@ function Vocal({data,setData,isAdmin,requireAdmin}) {
             {v.aquecimento&&<div style={{borderLeft:`3px solid ${C.green}`,paddingLeft:10,fontSize:12,color:C.muted}}><strong style={{color:C.green}}>Aquecimento:</strong> {v.aquecimento}</div>}
           </Card>
         ))}
-      </div>
+      </div>}
       {modal&&<Modal title="Perfil Vocal" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Input label="Nome do membro" value={form.membro} onChange={v=>setForm(f=>({...f,membro:v}))}/>
@@ -451,19 +483,20 @@ function Vocal({data,setData,isAdmin,requireAdmin}) {
   );
 }
 
-function Comunicados({data,setData,isAdmin,requireAdmin}) {
+function Comunicados({isAdmin,requireAdmin}) {
+  const [items,loading]=useCollection("comunicados");
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({titulo:"",data:today(),prioridade:"media",texto:""});
-  const save=()=>{if(!form.titulo)return;setData(d=>({...d,comunicados:[{...form,id:uid()},...d.comunicados]}));setForm({titulo:"",data:today(),prioridade:"media",texto:""});setModal(false);};
-  const del=id=>requireAdmin(()=>setData(d=>({...d,comunicados:d.comunicados.filter(x=>x.id!==id)})));
+  const save=async()=>{if(!form.titulo)return;await addItem("comunicados",form);setForm({titulo:"",data:today(),prioridade:"media",texto:""});setModal(false);};
+  const del=id=>requireAdmin(()=>delItem("comunicados",id));
   const pC={alta:C.red,media:C.gold,baixa:C.green};
   const pL={alta:"🔴 Alta",media:"🟡 Média",baixa:"🟢 Baixa"};
   return (
     <div>
       <SH title="Comunicados" icon="📣" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Novo</Btn>}/>
-      {data.comunicados.length===0&&<Empty msg="Nenhum comunicado."/>}
+      {loading?<Loading/>:items.length===0?<Empty msg="Nenhum comunicado."/>:
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
-        {data.comunicados.map(c=>(
+        {items.map(c=>(
           <Card key={c.id} style={{borderLeft:`4px solid ${pC[c.prioridade]}`}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
               <div style={{flex:1}}>
@@ -477,7 +510,7 @@ function Comunicados({data,setData,isAdmin,requireAdmin}) {
             </div>
           </Card>
         ))}
-      </div>
+      </div>}
       {modal&&<Modal title="Novo Comunicado" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Input label="Título" value={form.titulo} onChange={v=>setForm(f=>({...f,titulo:v}))}/>
@@ -493,18 +526,19 @@ function Comunicados({data,setData,isAdmin,requireAdmin}) {
   );
 }
 
-function Devocionais({data,setData,isAdmin,requireAdmin}) {
+function Devocionais({isAdmin,requireAdmin}) {
+  const [items,loading]=useCollection("devocionais");
   const [modal,setModal]=useState(false);
   const [view,setView]=useState(null);
   const [form,setForm]=useState({titulo:"",referencia:"",data:today(),texto:""});
-  const save=()=>{if(!form.titulo)return;setData(d=>({...d,devocionais:[{...form,id:uid()},...d.devocionais]}));setForm({titulo:"",referencia:"",data:today(),texto:""});setModal(false);};
-  const del=id=>requireAdmin(()=>setData(d=>({...d,devocionais:d.devocionais.filter(x=>x.id!==id)})));
+  const save=async()=>{if(!form.titulo)return;await addItem("devocionais",form);setForm({titulo:"",referencia:"",data:today(),texto:""});setModal(false);};
+  const del=id=>requireAdmin(()=>delItem("devocionais",id));
   return (
     <div>
       <SH title="Devocionais" icon="📖" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Novo</Btn>}/>
-      {data.devocionais.length===0&&<Empty msg="Nenhum devocional cadastrado."/>}
+      {loading?<Loading/>:items.length===0?<Empty msg="Nenhum devocional cadastrado."/>:
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:14}}>
-        {data.devocionais.map(d=>(
+        {items.map(d=>(
           <Card key={d.id} style={{borderTop:`3px solid ${C.navy}`}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
               <div style={{fontSize:12,color:C.muted}}>{fmtDate(d.data)}</div>
@@ -516,7 +550,7 @@ function Devocionais({data,setData,isAdmin,requireAdmin}) {
             <button onClick={()=>setView(d)} style={{background:"none",border:"none",color:C.accent,fontSize:12,cursor:"pointer",marginTop:10,padding:0,fontWeight:600}}>Ler completo →</button>
           </Card>
         ))}
-      </div>
+      </div>}
       {view&&<Modal title={view.titulo} onClose={()=>setView(null)}>
         <div style={{fontSize:12,color:C.muted,marginBottom:4}}>{fmtDate(view.data)}</div>
         {view.referencia&&<div style={{color:C.accent,fontStyle:"italic",marginBottom:16,fontSize:14}}>📖 {view.referencia}</div>}
@@ -537,16 +571,17 @@ function Devocionais({data,setData,isAdmin,requireAdmin}) {
   );
 }
 
-function Aniversariantes({data,setData,isAdmin,requireAdmin}) {
+function Aniversariantes({isAdmin,requireAdmin}) {
+  const [items,loading]=useCollection("aniversariantes");
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({nome:"",data:"",funcao:"",contato:""});
-  const save=()=>{if(!form.nome||!form.data)return;setData(d=>({...d,aniversariantes:[...d.aniversariantes,{...form,id:uid()}]}));setForm({nome:"",data:"",funcao:"",contato:""});setModal(false);};
-  const del=id=>requireAdmin(()=>setData(d=>({...d,aniversariantes:d.aniversariantes.filter(x=>x.id!==id)})));
+  const save=async()=>{if(!form.nome||!form.data)return;await addItem("aniversariantes",form);setForm({nome:"",data:"",funcao:"",contato:""});setModal(false);};
+  const del=id=>requireAdmin(()=>delItem("aniversariantes",id));
   const now=new Date(); const thisMonth=now.getMonth()+1;
-  const sorted=[...data.aniversariantes].sort((a,b)=>{const[,am,ad]=a.data.split("-").map(Number);const[,bm,bd]=b.data.split("-").map(Number);return am!==bm?am-bm:ad-bd;});
-  const mesAtual=sorted.filter(a=>parseInt(a.data.split("-")[1])===thisMonth);
-  const outros=sorted.filter(a=>parseInt(a.data.split("-")[1])!==thisMonth);
-  const BCard=({a})=>{const[,m,d]=a.data.split("-");const isTM=parseInt(m)===thisMonth;return(
+  const sorted=[...items].sort((a,b)=>{const[,am,ad]=(a.data||"").split("-").map(Number);const[,bm,bd]=(b.data||"").split("-").map(Number);return am!==bm?am-bm:ad-bd;});
+  const mesAtual=sorted.filter(a=>parseInt((a.data||"").split("-")[1])===thisMonth);
+  const outros=sorted.filter(a=>parseInt((a.data||"").split("-")[1])!==thisMonth);
+  const BCard=({a})=>{const[,m,d]=(a.data||"").split("-");const isTM=parseInt(m)===thisMonth;return(
     <Card style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderLeft:isTM?`4px solid ${C.gold}`:undefined,flexWrap:"wrap",gap:8}}>
       <div style={{display:"flex",alignItems:"center",gap:12}}>
         <div style={{background:isTM?"#fff8e1":C.soft,width:44,height:44,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{isTM?"🎂":"🎉"}</div>
@@ -565,15 +600,16 @@ function Aniversariantes({data,setData,isAdmin,requireAdmin}) {
   return (
     <div>
       <SH title="Aniversariantes" icon="🎂" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Adicionar</Btn>}/>
-      {data.aniversariantes.length===0&&<Empty msg="Nenhum aniversariante cadastrado."/>}
-      {mesAtual.length>0&&<div style={{marginBottom:24}}>
-        <div style={{fontSize:12,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>🎂 Aniversariantes do mês</div>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>{mesAtual.map(a=><BCard key={a.id} a={a}/>)}</div>
-      </div>}
-      {outros.length>0&&<div>
-        <div style={{fontSize:12,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Todos</div>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>{outros.map(a=><BCard key={a.id} a={a}/>)}</div>
-      </div>}
+      {loading?<Loading/>:items.length===0?<Empty msg="Nenhum aniversariante cadastrado."/>:<>
+        {mesAtual.length>0&&<div style={{marginBottom:24}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>🎂 Aniversariantes do mês</div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>{mesAtual.map(a=><BCard key={a.id} a={a}/>)}</div>
+        </div>}
+        {outros.length>0&&<div>
+          <div style={{fontSize:12,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Todos</div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>{outros.map(a=><BCard key={a.id} a={a}/>)}</div>
+        </div>}
+      </>}
       {modal&&<Modal title="Novo Aniversariante" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Input label="Nome" value={form.nome} onChange={v=>setForm(f=>({...f,nome:v}))}/>
@@ -591,16 +627,14 @@ function Aniversariantes({data,setData,isAdmin,requireAdmin}) {
 
 function App() {
   const [active,setActive]=useState("integrantes");
-  const [data,setData]=useState(loadData);
   const [isMobile,setIsMobile]=useState(window.innerWidth<768);
   const [menuOpen,setMenuOpen]=useState(false);
   const [isAdmin,setIsAdmin]=useState(false);
   const [showLogin,setShowLogin]=useState(false);
   const [pendingAction,setPendingAction]=useState(null);
 
-  const requireAdmin=(fn)=>{ if(isAdmin){fn();}else{setPendingAction(()=>fn);setShowLogin(true);} };
+  const requireAdmin=useCallback((fn)=>{ if(isAdmin){fn();}else{setPendingAction(()=>fn);setShowLogin(true);} },[isAdmin]);
 
-  useEffect(()=>{ try{localStorage.setItem("hopemusic_data",JSON.stringify(data));}catch(e){} },[data]);
   useEffect(()=>{ const h=()=>setIsMobile(window.innerWidth<768); window.addEventListener("resize",h); return ()=>window.removeEventListener("resize",h); },[]);
 
   const modules={integrantes:Integrantes,repertorio:Repertorio,playlist:Playlist,escala:Escala,ensaios:Ensaios,setlist:Setlist,vocal:Vocal,comunicados:Comunicados,devocionais:Devocionais,aniversariantes:Aniversariantes};
@@ -608,7 +642,7 @@ function App() {
   const activeNav=NAV.find(n=>n.id===active);
   const adminProps={isAdmin,requireAdmin};
 
-  const LoginComp = showLogin && <LoginModal onClose={()=>{setShowLogin(false);setPendingAction(null);}} onSuccess={()=>{setIsAdmin(true);if(pendingAction){pendingAction();setPendingAction(null);}}}/>;
+  const LoginComp=showLogin&&<LoginModal onClose={()=>{setShowLogin(false);setPendingAction(null);}} onSuccess={()=>{setIsAdmin(true);if(pendingAction){pendingAction();setPendingAction(null);}}}/>;
 
   if(isMobile) return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",fontFamily:"'Segoe UI',sans-serif",background:C.offwhite}}>
@@ -619,7 +653,7 @@ function App() {
           <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>{activeNav?.icon} {activeNav?.label}</div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <button onClick={()=>isAdmin?setIsAdmin(false):setShowLogin(true)} style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:8,padding:"6px 12px",color:isAdmin?"#7effa0":"#fff",fontSize:16,cursor:"pointer"}} title={isAdmin?"Bloquear":"Entrar como líder"}>
+          <button onClick={()=>isAdmin?setIsAdmin(false):setShowLogin(true)} style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:8,padding:"6px 12px",color:isAdmin?"#7effa0":"#fff",fontSize:16,cursor:"pointer"}}>
             {isAdmin?"🔓":"🔒"}
           </button>
           <button onClick={()=>setMenuOpen(!menuOpen)} style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",fontSize:20,cursor:"pointer"}}>☰</button>
@@ -636,7 +670,7 @@ function App() {
           </div>
         </div>
       )}
-      <main style={{flex:1,overflowY:"auto",padding:"20px 16px"}}><Module data={data} setData={setData} {...adminProps}/></main>
+      <main style={{flex:1,overflowY:"auto",padding:"20px 16px"}}><Module {...adminProps}/></main>
     </div>
   );
 
@@ -660,7 +694,7 @@ function App() {
         </nav>
         <div style={{padding:"16px 20px",borderTop:"1px solid rgba(255,255,255,0.08)",fontSize:11,color:"rgba(255,255,255,0.3)"}}>Hope Music © 2025</div>
       </aside>
-      <main style={{flex:1,overflowY:"auto",padding:"32px 36px"}}><Module data={data} setData={setData} {...adminProps}/></main>
+      <main style={{flex:1,overflowY:"auto",padding:"32px 36px"}}><Module {...adminProps}/></main>
     </div>
   );
 }
