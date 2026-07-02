@@ -12,7 +12,7 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState } = React;
+const { useState, useEffect } = React;
 
 const NAV = [
   { id: "integrantes", label: "Integrantes", icon: "👥" },
@@ -65,7 +65,7 @@ const initData = {
 
 const Badge = ({label,color}) => <span style={{background:color+"22",color,border:`1px solid ${color}44`,borderRadius:50,padding:"2px 10px",fontSize:11,fontWeight:700}}>{label}</span>;
 const Btn = ({children,onClick,variant="primary",small}) => {
-  const s={primary:{background:C.navy,color:"#fff"},danger:{background:C.red,color:"#fff"},ghost:{background:"transparent",color:C.navy,border:`1px solid ${C.navy}`},green:{background:C.green,color:"#fff"}};
+  const s={primary:{background:C.navy,color:"#fff"},danger:{background:C.red,color:"#fff"},ghost:{background:"transparent",color:C.navy,border:`1px solid ${C.navy}`}};
   return <button onClick={onClick} style={{...s[variant],border:s[variant].border||"none",borderRadius:8,padding:small?"5px 12px":"8px 16px",fontSize:small?12:13,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5}}>{children}</button>;
 };
 const Input = ({label,value,onChange,type="text",placeholder}) => (
@@ -118,12 +118,12 @@ function Integrantes({data,setData}) {
     <div>
       <SectionHeader title="Integrantes" icon="👥" action={<Btn onClick={()=>setModal(true)}>+ Adicionar</Btn>}/>
       {data.integrantes.length===0 && <Empty msg="Nenhum integrante cadastrado."/>}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:14}}>
         {data.integrantes.map((m,i)=>(
           <Card key={m.id} style={{textAlign:"center",position:"relative"}}>
             <button onClick={()=>del(m.id)} style={{position:"absolute",top:10,right:10,background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:14}}>✕</button>
-            <div style={{width:56,height:56,borderRadius:"50%",background:colors[i%colors.length]+"22",border:`2px solid ${colors[i%colors.length]}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,margin:"0 auto 12px"}}>🎵</div>
-            <div style={{fontWeight:800,color:C.navy,fontSize:15,marginBottom:6}}>{m.nome}</div>
+            <div style={{width:48,height:48,borderRadius:"50%",background:colors[i%colors.length]+"22",border:`2px solid ${colors[i%colors.length]}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,margin:"0 auto 10px"}}>🎵</div>
+            <div style={{fontWeight:800,color:C.navy,fontSize:14,marginBottom:6}}>{m.nome}</div>
             <Badge label={m.funcao} color={colors[i%colors.length]}/>
           </Card>
         ))}
@@ -151,20 +151,22 @@ function Playlist({data,setData}) {
   const sColor=s=>s==="concluída"?C.green:C.gold;
   return (
     <div>
-      <SectionHeader title="Playlist para Tirar" icon="🎵" action={<Btn onClick={()=>setModal(true)}>+ Adicionar música</Btn>}/>
+      <SectionHeader title="Playlist para Tirar" icon="🎵" action={<Btn onClick={()=>setModal(true)}>+ Adicionar</Btn>}/>
       {data.playlist.length===0 && <Empty msg="Nenhuma música cadastrada."/>}
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         {data.playlist.map(m=>(
-          <Card key={m.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
-            <div>
-              <div style={{fontWeight:700,color:C.text,fontSize:15}}>{m.nome}</div>
-              <div style={{color:C.muted,fontSize:13}}>{m.artista}{m.tom&&` · Tom: ${m.tom}`}{m.bpm&&` · ${m.bpm} BPM`}</div>
-              {m.link && <a href={m.link} target="_blank" rel="noreferrer" style={{color:C.accent,fontSize:12}}>🔗 Ver vídeo</a>}
-            </div>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <Badge label={m.status==="concluída"?"✓ Concluída":"Ensaiando"} color={sColor(m.status)}/>
-              <Btn small variant="ghost" onClick={()=>toggle(m.id)}>{m.status==="concluída"?"Reabrir":"Concluir"}</Btn>
-              <Btn small variant="danger" onClick={()=>del(m.id)}>✕</Btn>
+          <Card key={m.id}>
+            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,flexWrap:"wrap"}}>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,color:C.text,fontSize:15}}>{m.nome}</div>
+                <div style={{color:C.muted,fontSize:13}}>{m.artista}{m.tom&&` · Tom: ${m.tom}`}{m.bpm&&` · ${m.bpm} BPM`}</div>
+                {m.link && <a href={m.link} target="_blank" rel="noreferrer" style={{color:C.accent,fontSize:12}}>🔗 Ver vídeo</a>}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                <Badge label={m.status==="concluída"?"✓ Concluída":"Ensaiando"} color={sColor(m.status)}/>
+                <Btn small variant="ghost" onClick={()=>toggle(m.id)}>{m.status==="concluída"?"Reabrir":"Concluir"}</Btn>
+                <Btn small variant="danger" onClick={()=>del(m.id)}>✕</Btn>
+              </div>
             </div>
           </Card>
         ))}
@@ -177,7 +179,7 @@ function Playlist({data,setData}) {
             <Input label="Tom" value={form.tom} onChange={v=>setForm(f=>({...f,tom:v}))} placeholder="Ex: G, Am"/>
             <Input label="BPM" value={form.bpm} onChange={v=>setForm(f=>({...f,bpm:v}))}/>
           </div>
-          <Input label="Link (YouTube, Spotify...)" value={form.link} onChange={v=>setForm(f=>({...f,link:v}))}/>
+          <Input label="Link" value={form.link} onChange={v=>setForm(f=>({...f,link:v}))}/>
           <Select label="Status" value={form.status} onChange={v=>setForm(f=>({...f,status:v}))} options={[{value:"ensaiando",label:"Ensaiando"},{value:"concluída",label:"Concluída"}]}/>
           <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
             <Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn>
@@ -197,7 +199,6 @@ function Escala({data,setData}) {
   const remM=i=>setForm(f=>({...f,membros:f.membros.filter((_,idx)=>idx!==i)}));
   const save=()=>{if(!form.culto)return;setData(d=>({...d,escala:[...d.escala,{...form,id:uid()}]}));setForm({data:today(),culto:"",membros:[{nome:"",funcao:""}]});setModal(false);};
   const del=id=>setData(d=>({...d,escala:d.escala.filter(x=>x.id!==id)}));
-  const fColors={"Direção/Vocal":C.navy,"Vocal":"#7B68EE","Violão":C.green,"Baixo":"#8B4513","Bateria":C.red,"Teclado":"#9B59B6","Guitarra":C.gold};
   return (
     <div>
       <SectionHeader title="Escala da Equipe" icon="📅" action={<Btn onClick={()=>setModal(true)}>+ Nova escala</Btn>}/>
@@ -216,7 +217,7 @@ function Escala({data,setData}) {
               {e.membros.map((m,i)=>(
                 <div key={i} style={{background:C.soft,borderRadius:8,padding:"8px 14px"}}>
                   <div style={{fontWeight:700,fontSize:14,color:C.text}}>{m.nome}</div>
-                  <div style={{fontSize:11,color:fColors[m.funcao]||C.accent,fontWeight:600}}>{m.funcao}</div>
+                  <div style={{fontSize:11,color:C.accent,fontWeight:600}}>{m.funcao}</div>
                 </div>
               ))}
             </div>
@@ -233,8 +234,8 @@ function Escala({data,setData}) {
             <label style={{fontSize:12,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:8}}>Membros</label>
             {form.membros.map((m,i)=>(
               <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:8,marginBottom:8}}>
-                <input value={m.nome} onChange={e=>updM(i,"nome",e.target.value)} placeholder="Nome" style={{border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:C.text,outline:"none"}}/>
-                <input value={m.funcao} onChange={e=>updM(i,"funcao",e.target.value)} placeholder="Função" style={{border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:C.text,outline:"none"}}/>
+                <input value={m.nome} onChange={e=>updM(i,"nome",e.target.value)} placeholder="Nome" style={{border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:13,color:C.text,outline:"none"}}/>
+                <input value={m.funcao} onChange={e=>updM(i,"funcao",e.target.value)} placeholder="Função" style={{border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:13,color:C.text,outline:"none"}}/>
                 <button onClick={()=>remM(i)} style={{background:C.red,color:"#fff",border:"none",borderRadius:8,padding:"0 10px",cursor:"pointer"}}>✕</button>
               </div>
             ))}
@@ -264,7 +265,7 @@ function Ensaios({data,setData}) {
           <Card key={e.id}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
               <div style={{flex:1}}>
-                <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:8,flexWrap:"wrap"}}>
+                <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8,flexWrap:"wrap"}}>
                   <Badge label={fmtDate(e.data)} color={C.navy}/>
                   <Badge label={e.hora} color={C.accent}/>
                   <Badge label={e.local} color={C.green}/>
@@ -377,7 +378,7 @@ function Vocal({data,setData}) {
     <div>
       <SectionHeader title="Área Vocal" icon="🎤" action={<Btn onClick={()=>setModal(true)}>+ Adicionar</Btn>}/>
       {data.vocal.length===0 && <Empty msg="Nenhum perfil vocal cadastrado."/>}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:14}}>
         {data.vocal.map(v=>(
           <Card key={v.id}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
@@ -420,7 +421,7 @@ function Comunicados({data,setData}) {
   const pLabel={alta:"🔴 Alta",media:"🟡 Média",baixa:"🟢 Baixa"};
   return (
     <div>
-      <SectionHeader title="Comunicados" icon="📣" action={<Btn onClick={()=>setModal(true)}>+ Novo comunicado</Btn>}/>
+      <SectionHeader title="Comunicados" icon="📣" action={<Btn onClick={()=>setModal(true)}>+ Novo</Btn>}/>
       {data.comunicados.length===0 && <Empty msg="Nenhum comunicado."/>}
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
         {data.comunicados.map(c=>(
@@ -465,9 +466,9 @@ function Devocionais({data,setData}) {
   const del=id=>setData(d=>({...d,devocionais:d.devocionais.filter(x=>x.id!==id)}));
   return (
     <div>
-      <SectionHeader title="Devocionais" icon="📖" action={<Btn onClick={()=>setModal(true)}>+ Novo devocional</Btn>}/>
+      <SectionHeader title="Devocionais" icon="📖" action={<Btn onClick={()=>setModal(true)}>+ Novo</Btn>}/>
       {data.devocionais.length===0 && <Empty msg="Nenhum devocional cadastrado."/>}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:14}}>
         {data.devocionais.map(d=>(
           <Card key={d.id} style={{borderTop:`3px solid ${C.navy}`}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
@@ -510,15 +511,15 @@ function Aniversariantes({data,setData}) {
   const save=()=>{if(!form.nome||!form.data)return;setData(d=>({...d,aniversariantes:[...d.aniversariantes,{...form,id:uid()}]}));setForm({nome:"",data:"",funcao:"",contato:""});setModal(false);};
   const del=id=>setData(d=>({...d,aniversariantes:d.aniversariantes.filter(x=>x.id!==id)}));
   const now=new Date(); const thisMonth=now.getMonth()+1;
-  const sorted=[...data.aniversariantes].sort((a,b)=>{const[,am,,ad]=a.data.split("-").map(Number);const[,bm,,bd]=b.data.split("-").map(Number);return am!==bm?am-bm:ad-bd;});
+  const sorted=[...data.aniversariantes].sort((a,b)=>{const[,am,ad]=a.data.split("-").map(Number);const[,bm,bd]=b.data.split("-").map(Number);return am!==bm?am-bm:ad-bd;});
   const mesAtual=sorted.filter(a=>parseInt(a.data.split("-")[1])===thisMonth);
   const outros=sorted.filter(a=>parseInt(a.data.split("-")[1])!==thisMonth);
   const BCard=({a})=>{const[,m,d]=a.data.split("-");const isTM=parseInt(m)===thisMonth;return(
-    <Card style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderLeft:isTM?`4px solid ${C.gold}`:undefined}}>
-      <div style={{display:"flex",alignItems:"center",gap:14}}>
-        <div style={{background:isTM?"#fff8e1":C.soft,width:48,height:48,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>{isTM?"🎂":"🎉"}</div>
+    <Card style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderLeft:isTM?`4px solid ${C.gold}`:undefined,flexWrap:"wrap",gap:8}}>
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        <div style={{background:isTM?"#fff8e1":C.soft,width:44,height:44,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{isTM?"🎂":"🎉"}</div>
         <div>
-          <div style={{fontWeight:800,color:C.navy,fontSize:15}}>{a.nome}</div>
+          <div style={{fontWeight:800,color:C.navy,fontSize:14}}>{a.nome}</div>
           <div style={{fontSize:12,color:C.accent}}>{a.funcao}</div>
           <div style={{fontSize:12,color:C.muted}}>{d}/{m} · {monthName(parseInt(m))}</div>
         </div>
@@ -562,8 +563,45 @@ function Aniversariantes({data,setData}) {
 function App() {
   const [active,setActive]=useState("integrantes");
   const [data,setData]=useState(initData);
+  const [isMobile,setIsMobile]=useState(window.innerWidth<768);
+  const [menuOpen,setMenuOpen]=useState(false);
+
+  useEffect(()=>{
+    const handler=()=>setIsMobile(window.innerWidth<768);
+    window.addEventListener("resize",handler);
+    return ()=>window.removeEventListener("resize",handler);
+  },[]);
+
   const modules={integrantes:Integrantes,playlist:Playlist,escala:Escala,ensaios:Ensaios,setlist:Setlist,vocal:Vocal,comunicados:Comunicados,devocionais:Devocionais,aniversariantes:Aniversariantes};
   const Module=modules[active];
+  const activeNav=NAV.find(n=>n.id===active);
+
+  if(isMobile) return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",fontFamily:"'Segoe UI',sans-serif",background:C.offwhite}}>
+      <div style={{background:C.navy,padding:"14px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+        <div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",letterSpacing:2,textTransform:"uppercase"}}>Hope Music</div>
+          <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>{activeNav?.icon} {activeNav?.label}</div>
+        </div>
+        <button onClick={()=>setMenuOpen(!menuOpen)} style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",fontSize:20,cursor:"pointer"}}>☰</button>
+      </div>
+      {menuOpen && (
+        <div style={{position:"fixed",inset:0,zIndex:998}} onClick={()=>setMenuOpen(false)}>
+          <div style={{position:"absolute",top:58,left:0,right:0,background:C.navy,zIndex:999,padding:"8px 10px",boxShadow:"0 8px 24px rgba(0,0,0,0.3)"}} onClick={e=>e.stopPropagation()}>
+            {NAV.map(n=>(
+              <button key={n.id} onClick={()=>{setActive(n.id);setMenuOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"12px 14px",borderRadius:10,border:"none",background:active===n.id?"rgba(255,255,255,0.15)":"transparent",color:active===n.id?"#fff":"rgba(255,255,255,0.6)",fontSize:14,fontWeight:active===n.id?700:400,cursor:"pointer",marginBottom:2,textAlign:"left"}}>
+                <span style={{fontSize:18}}>{n.icon}</span>{n.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <main style={{flex:1,overflowY:"auto",padding:"20px 16px"}}>
+        <Module data={data} setData={setData}/>
+      </main>
+    </div>
+  );
+
   return (
     <div style={{display:"flex",height:"100vh",fontFamily:"'Segoe UI',sans-serif",background:C.offwhite,overflow:"hidden"}}>
       <aside style={{width:220,background:C.navy,display:"flex",flexDirection:"column",flexShrink:0}}>
