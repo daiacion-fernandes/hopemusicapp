@@ -13,9 +13,11 @@
 <div id="root"></div>
 <script type="text/babel">
 const { useState, useEffect } = React;
+const SENHA = "221938";
 
 const NAV = [
   { id: "integrantes", label: "Integrantes", icon: "👥" },
+  { id: "repertorio", label: "Repertório Geral", icon: "🎼" },
   { id: "playlist", label: "Playlist p/ Tirar", icon: "🎵" },
   { id: "escala", label: "Escala da Equipe", icon: "📅" },
   { id: "ensaios", label: "Ensaios", icon: "🎸" },
@@ -26,7 +28,7 @@ const NAV = [
   { id: "aniversariantes", label: "Aniversariantes", icon: "🎂" },
 ];
 
-const C = { navy:"#1e3a5f", navy2:"#24487a", offwhite:"#f7f5f0", card:"#ffffff", border:"#e2ddd5", text:"#1a2a3a", muted:"#7a8898", accent:"#2d5a9e", green:"#3d7a58", red:"#c0392b", gold:"#b8860b", soft:"#eef2f8" };
+const C = { navy:"#1e3a5f", offwhite:"#f7f5f0", card:"#ffffff", border:"#e2ddd5", text:"#1a2a3a", muted:"#7a8898", accent:"#2d5a9e", green:"#3d7a58", red:"#c0392b", gold:"#b8860b", soft:"#eef2f8" };
 const uid = () => Math.random().toString(36).slice(2,8);
 const fmtDate = d => { if(!d) return ""; const [y,m,day]=d.split("-"); return `${day}/${m}/${y}`; };
 const monthName = m => ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][m-1];
@@ -39,23 +41,21 @@ const initData = {
     { id:uid(), nome:"Pedro", funcao:"Bateria" },
     { id:uid(), nome:"Ana", funcao:"Vocal" },
   ],
+  repertorio: [
+    { id:uid(), nome:"Bondade de Deus", artista:"Bethel Music", tom:"A" },
+    { id:uid(), nome:"Oceanos", artista:"Hillsong", tom:"G" },
+    { id:uid(), nome:"Santo Espírito", artista:"Hillsong", tom:"D" },
+  ],
   playlist: [
     { id:uid(), nome:"Oceanos", artista:"Hillsong", tom:"G", bpm:"72", status:"ensaiando", link:"" },
     { id:uid(), nome:"Bondade de Deus", artista:"Bethel Music", tom:"A", bpm:"68", status:"concluída", link:"" },
-    { id:uid(), nome:"Maravilhoso és Tu", artista:"Novo Tempo", tom:"D", bpm:"76", status:"ensaiando", link:"" },
   ],
   escala: [{ id:uid(), data:"2025-07-06", culto:"Culto Dominical", membros:[{nome:"Daia",funcao:"Direção/Vocal"},{nome:"Lucas",funcao:"Violão"},{nome:"Pedro",funcao:"Bateria"}] }],
   ensaios: [{ id:uid(), data:"2025-07-04", hora:"18:00", local:"Igreja", musicas:"Oceanos, Bondade de Deus", obs:"Focar na harmonia vocal" }],
-  setlist: [{ id:uid(), data:"2025-07-06", culto:"Dominical 19h", musicas:[{nome:"Bondade de Deus",tom:"A",tempo:"entrada"},{nome:"Oceanos",tom:"G",tempo:"adoração"},{nome:"Santo Espírito",tom:"D",tempo:"ministração"}] }],
-  vocal: [
-    { id:uid(), membro:"Daia", extensao:"Mezzo-soprano (A2–G5)", obs:"Evitar notas abaixo de B3 sem aquecimento.", aquecimento:"Lip trill 5 min → escalas em terças → arpejos" },
-    { id:uid(), membro:"Ana", extensao:"Soprano (C3–A5)", obs:"Atenção ao vibrato forçado.", aquecimento:"Bocejo-suspiro → escalas cromáticas" },
-  ],
-  comunicados: [
-    { id:uid(), titulo:"Ensaio extra — 12 de julho", data:"2025-07-01", prioridade:"alta", texto:"Haverá um ensaio especial no sábado dia 12 de julho às 15h. Presença obrigatória." },
-    { id:uid(), titulo:"Entrega de uniformes", data:"2025-07-03", prioridade:"media", texto:"Os uniformes novos chegaram! Retire o seu com Daia até domingo." },
-  ],
-  devocionais: [{ id:uid(), titulo:"Adoração com integridade", referencia:"Sl 24:3-4", data:"2025-07-01", texto:"Quem pode subir ao monte do Senhor? O de mãos limpas e coração puro. A adoração começa antes do palco — começa no coração." }],
+  setlist: [{ id:uid(), data:"2025-07-06", culto:"Dominical 19h", musicas:[{nome:"Bondade de Deus",tom:"A",tempo:"entrada"},{nome:"Oceanos",tom:"G",tempo:"adoração"}] }],
+  vocal: [{ id:uid(), membro:"Daia", extensao:"Mezzo-soprano (A2–G5)", obs:"Evitar notas abaixo de B3 sem aquecimento.", aquecimento:"Lip trill 5 min → escalas em terças" }],
+  comunicados: [{ id:uid(), titulo:"Ensaio extra — 12 de julho", data:"2025-07-01", prioridade:"alta", texto:"Ensaio especial sábado dia 12 às 15h. Presença obrigatória." }],
+  devocionais: [{ id:uid(), titulo:"Adoração com integridade", referencia:"Sl 24:3-4", data:"2025-07-01", texto:"Quem pode subir ao monte do Senhor? O de mãos limpas e coração puro." }],
   aniversariantes: [
     { id:uid(), nome:"Lucas", data:"1990-07-14", funcao:"Violão", contato:"" },
     { id:uid(), nome:"Ana", data:"1995-03-22", funcao:"Vocal", contato:"" },
@@ -63,6 +63,11 @@ const initData = {
   ],
 };
 
+const loadData = () => {
+  try { const s=localStorage.getItem("hopemusic_data"); return s?JSON.parse(s):initData; } catch { return initData; }
+};
+
+// UI
 const Badge = ({label,color}) => <span style={{background:color+"22",color,border:`1px solid ${color}44`,borderRadius:50,padding:"2px 10px",fontSize:11,fontWeight:700}}>{label}</span>;
 const Btn = ({children,onClick,variant="primary",small}) => {
   const s={primary:{background:C.navy,color:"#fff"},danger:{background:C.red,color:"#fff"},ghost:{background:"transparent",color:C.navy,border:`1px solid ${C.navy}`}};
@@ -70,19 +75,19 @@ const Btn = ({children,onClick,variant="primary",small}) => {
 };
 const Input = ({label,value,onChange,type="text",placeholder}) => (
   <div style={{display:"flex",flexDirection:"column",gap:4}}>
-    {label && <label style={{fontSize:12,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:1}}>{label}</label>}
+    {label&&<label style={{fontSize:12,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:1}}>{label}</label>}
     <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 12px",fontSize:14,color:C.text,outline:"none",background:"#fff"}}/>
   </div>
 );
 const Textarea = ({label,value,onChange,rows=3}) => (
   <div style={{display:"flex",flexDirection:"column",gap:4}}>
-    {label && <label style={{fontSize:12,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:1}}>{label}</label>}
+    {label&&<label style={{fontSize:12,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:1}}>{label}</label>}
     <textarea value={value} onChange={e=>onChange(e.target.value)} rows={rows} style={{border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 12px",fontSize:14,color:C.text,outline:"none",resize:"vertical",fontFamily:"inherit",background:"#fff"}}/>
   </div>
 );
 const Select = ({label,value,onChange,options}) => (
   <div style={{display:"flex",flexDirection:"column",gap:4}}>
-    {label && <label style={{fontSize:12,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:1}}>{label}</label>}
+    {label&&<label style={{fontSize:12,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:1}}>{label}</label>}
     <select value={value} onChange={e=>onChange(e.target.value)} style={{border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 12px",fontSize:14,color:C.text,outline:"none",background:"#fff"}}>
       {options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
@@ -100,59 +105,120 @@ const Modal = ({title,children,onClose}) => (
     </div>
   </div>
 );
-const SectionHeader = ({title,icon,action}) => (
+const SH = ({title,icon,action,sub}) => (
   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-    <h2 style={{color:C.navy,fontSize:20,fontWeight:800,margin:0}}>{icon} {title}</h2>
+    <div>
+      <h2 style={{color:C.navy,fontSize:20,fontWeight:800,margin:0}}>{icon} {title}</h2>
+      {sub&&<p style={{color:C.muted,fontSize:13,marginTop:4}}>{sub}</p>}
+    </div>
     {action}
   </div>
 );
 const Empty = ({msg}) => <p style={{color:C.muted,textAlign:"center",padding:"40px 0",fontSize:14}}>{msg}</p>;
 
-function Integrantes({data,setData}) {
+function LoginModal({onClose,onSuccess}) {
+  const [val,setVal]=useState(""); const [erro,setErro]=useState(false);
+  const tentar=()=>{if(val===SENHA){onSuccess();onClose();}else{setErro(true);setVal("");}};
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
+      <div style={{background:"#fff",borderRadius:20,padding:32,maxWidth:340,width:"100%",textAlign:"center",boxShadow:"0 8px 40px rgba(0,0,0,0.15)"}}>
+        <div style={{fontSize:40,marginBottom:12}}>🔒</div>
+        <h3 style={{color:C.navy,fontSize:18,fontWeight:800,marginBottom:6}}>Área restrita</h3>
+        <p style={{color:C.muted,fontSize:13,marginBottom:20}}>Digite a senha para editar o app</p>
+        <input type="password" value={val} onChange={e=>{setVal(e.target.value);setErro(false);}} onKeyDown={e=>e.key==="Enter"&&tentar()} placeholder="Senha" style={{width:"100%",border:`2px solid ${erro?C.red:C.border}`,borderRadius:10,padding:"10px 14px",fontSize:16,color:C.text,outline:"none",textAlign:"center",marginBottom:8}}/>
+        {erro&&<p style={{color:C.red,fontSize:12,marginBottom:8}}>Senha incorreta. Tente novamente.</p>}
+        <div style={{display:"flex",gap:8,marginTop:12}}>
+          <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
+          <Btn onClick={tentar}>Entrar</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Modules
+function Integrantes({data,setData,isAdmin,requireAdmin}) {
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({nome:"",funcao:""});
   const save=()=>{if(!form.nome)return;setData(d=>({...d,integrantes:[...d.integrantes,{...form,id:uid()}]}));setForm({nome:"",funcao:""});setModal(false);};
-  const del=id=>setData(d=>({...d,integrantes:d.integrantes.filter(x=>x.id!==id)}));
+  const del=id=>requireAdmin(()=>setData(d=>({...d,integrantes:d.integrantes.filter(x=>x.id!==id)})));
   const colors=["#1e3a5f","#3d7a58","#9B59B6","#b8860b","#c0392b","#2d5a9e","#7B68EE","#8B4513"];
   return (
     <div>
-      <SectionHeader title="Integrantes" icon="👥" action={<Btn onClick={()=>setModal(true)}>+ Adicionar</Btn>}/>
-      {data.integrantes.length===0 && <Empty msg="Nenhum integrante cadastrado."/>}
+      <SH title="Integrantes" icon="👥" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Adicionar</Btn>}/>
+      {data.integrantes.length===0&&<Empty msg="Nenhum integrante cadastrado."/>}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:14}}>
         {data.integrantes.map((m,i)=>(
           <Card key={m.id} style={{textAlign:"center",position:"relative"}}>
-            <button onClick={()=>del(m.id)} style={{position:"absolute",top:10,right:10,background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:14}}>✕</button>
+            {isAdmin&&<button onClick={()=>del(m.id)} style={{position:"absolute",top:10,right:10,background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:14}}>✕</button>}
             <div style={{width:48,height:48,borderRadius:"50%",background:colors[i%colors.length]+"22",border:`2px solid ${colors[i%colors.length]}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,margin:"0 auto 10px"}}>🎵</div>
             <div style={{fontWeight:800,color:C.navy,fontSize:14,marginBottom:6}}>{m.nome}</div>
             <Badge label={m.funcao} color={colors[i%colors.length]}/>
           </Card>
         ))}
       </div>
-      {modal && <Modal title="Novo Integrante" onClose={()=>setModal(false)}>
+      {modal&&<Modal title="Novo Integrante" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Input label="Nome" value={form.nome} onChange={v=>setForm(f=>({...f,nome:v}))}/>
           <Input label="Função no ministério" value={form.funcao} onChange={v=>setForm(f=>({...f,funcao:v}))} placeholder="Ex: Vocal, Violão, Bateria..."/>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn>
-            <Btn onClick={save}>Salvar</Btn>
-          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn><Btn onClick={save}>Salvar</Btn></div>
         </div>
       </Modal>}
     </div>
   );
 }
 
-function Playlist({data,setData}) {
+function Repertorio({data,setData,isAdmin,requireAdmin}) {
+  const [modal,setModal]=useState(false);
+  const [busca,setBusca]=useState("");
+  const [form,setForm]=useState({nome:"",artista:"",tom:""});
+  const save=()=>{if(!form.nome)return;setData(d=>({...d,repertorio:[...d.repertorio,{...form,id:uid()}]}));setForm({nome:"",artista:"",tom:""});setModal(false);};
+  const del=id=>requireAdmin(()=>setData(d=>({...d,repertorio:d.repertorio.filter(x=>x.id!==id)})));
+  const sorted=[...data.repertorio].filter(m=>m.nome.toLowerCase().includes(busca.toLowerCase())||m.artista?.toLowerCase().includes(busca.toLowerCase())).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+  const tC=t=>({A:C.navy,B:"#6B21A8",C:C.green,D:"#b8860b",E:C.red,F:"#0891b2",G:"#7B68EE"}[t?.charAt(0)]||C.muted);
+  return (
+    <div>
+      <SH title="Repertório Geral" icon="🎼" sub={`${data.repertorio.length} música${data.repertorio.length!==1?"s":""} · ordem alfabética`} action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Adicionar</Btn>}/>
+      <div style={{marginBottom:16}}><input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="🔍 Buscar música ou artista..." style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 14px",fontSize:14,color:C.text,outline:"none",background:"#fff"}}/></div>
+      {sorted.length===0&&<Empty msg="Nenhuma música encontrada."/>}
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {sorted.map((m,i)=>(
+          <Card key={m.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"14px 18px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:14,flex:1}}>
+              <span style={{color:C.muted,fontSize:13,minWidth:24,fontWeight:600}}>{i+1}.</span>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,color:C.text,fontSize:15}}>{m.nome}</div>
+                {m.artista&&<div style={{color:C.muted,fontSize:12}}>{m.artista}</div>}
+              </div>
+              {m.tom&&<div style={{background:tC(m.tom)+"18",border:`1.5px solid ${tC(m.tom)}44`,borderRadius:8,padding:"4px 12px",fontWeight:800,color:tC(m.tom),fontSize:14,minWidth:40,textAlign:"center"}}>{m.tom}</div>}
+            </div>
+            {isAdmin&&<Btn small variant="danger" onClick={()=>del(m.id)}>✕</Btn>}
+          </Card>
+        ))}
+      </div>
+      {modal&&<Modal title="Nova Música no Repertório" onClose={()=>setModal(false)}>
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <Input label="Nome da música" value={form.nome} onChange={v=>setForm(f=>({...f,nome:v}))}/>
+          <Input label="Artista" value={form.artista} onChange={v=>setForm(f=>({...f,artista:v}))}/>
+          <Input label="Tom" value={form.tom} onChange={v=>setForm(f=>({...f,tom:v}))} placeholder="Ex: A, G, D, Em..."/>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn><Btn onClick={save}>Salvar</Btn></div>
+        </div>
+      </Modal>}
+    </div>
+  );
+}
+
+function Playlist({data,setData,isAdmin,requireAdmin}) {
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({nome:"",artista:"",tom:"",bpm:"",status:"ensaiando",link:""});
   const save=()=>{if(!form.nome)return;setData(d=>({...d,playlist:[...d.playlist,{...form,id:uid()}]}));setForm({nome:"",artista:"",tom:"",bpm:"",status:"ensaiando",link:""});setModal(false);};
-  const del=id=>setData(d=>({...d,playlist:d.playlist.filter(x=>x.id!==id)}));
-  const toggle=id=>setData(d=>({...d,playlist:d.playlist.map(x=>x.id===id?{...x,status:x.status==="concluída"?"ensaiando":"concluída"}:x)}));
-  const sColor=s=>s==="concluída"?C.green:C.gold;
+  const del=id=>requireAdmin(()=>setData(d=>({...d,playlist:d.playlist.filter(x=>x.id!==id)})));
+  const toggle=id=>requireAdmin(()=>setData(d=>({...d,playlist:d.playlist.map(x=>x.id===id?{...x,status:x.status==="concluída"?"ensaiando":"concluída"}:x)})));
+  const sC=s=>s==="concluída"?C.green:C.gold;
   return (
     <div>
-      <SectionHeader title="Playlist para Tirar" icon="🎵" action={<Btn onClick={()=>setModal(true)}>+ Adicionar</Btn>}/>
-      {data.playlist.length===0 && <Empty msg="Nenhuma música cadastrada."/>}
+      <SH title="Playlist para Tirar" icon="🎵" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Adicionar</Btn>}/>
+      {data.playlist.length===0&&<Empty msg="Nenhuma música cadastrada."/>}
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         {data.playlist.map(m=>(
           <Card key={m.id}>
@@ -160,18 +226,17 @@ function Playlist({data,setData}) {
               <div style={{flex:1}}>
                 <div style={{fontWeight:700,color:C.text,fontSize:15}}>{m.nome}</div>
                 <div style={{color:C.muted,fontSize:13}}>{m.artista}{m.tom&&` · Tom: ${m.tom}`}{m.bpm&&` · ${m.bpm} BPM`}</div>
-                {m.link && <a href={m.link} target="_blank" rel="noreferrer" style={{color:C.accent,fontSize:12}}>🔗 Ver vídeo</a>}
+                {m.link&&<a href={m.link} target="_blank" rel="noreferrer" style={{color:C.accent,fontSize:12}}>🔗 Ver vídeo</a>}
               </div>
               <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-                <Badge label={m.status==="concluída"?"✓ Concluída":"Ensaiando"} color={sColor(m.status)}/>
-                <Btn small variant="ghost" onClick={()=>toggle(m.id)}>{m.status==="concluída"?"Reabrir":"Concluir"}</Btn>
-                <Btn small variant="danger" onClick={()=>del(m.id)}>✕</Btn>
+                <Badge label={m.status==="concluída"?"✓ Concluída":"Ensaiando"} color={sC(m.status)}/>
+                {isAdmin&&<><Btn small variant="ghost" onClick={()=>toggle(m.id)}>{m.status==="concluída"?"Reabrir":"Concluir"}</Btn><Btn small variant="danger" onClick={()=>del(m.id)}>✕</Btn></>}
               </div>
             </div>
           </Card>
         ))}
       </div>
-      {modal && <Modal title="Nova Música" onClose={()=>setModal(false)}>
+      {modal&&<Modal title="Nova Música" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Input label="Nome da música" value={form.nome} onChange={v=>setForm(f=>({...f,nome:v}))}/>
           <Input label="Artista" value={form.artista} onChange={v=>setForm(f=>({...f,artista:v}))}/>
@@ -181,37 +246,31 @@ function Playlist({data,setData}) {
           </div>
           <Input label="Link" value={form.link} onChange={v=>setForm(f=>({...f,link:v}))}/>
           <Select label="Status" value={form.status} onChange={v=>setForm(f=>({...f,status:v}))} options={[{value:"ensaiando",label:"Ensaiando"},{value:"concluída",label:"Concluída"}]}/>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn>
-            <Btn onClick={save}>Salvar</Btn>
-          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn><Btn onClick={save}>Salvar</Btn></div>
         </div>
       </Modal>}
     </div>
   );
 }
 
-function Escala({data,setData}) {
+function Escala({data,setData,isAdmin,requireAdmin}) {
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({data:today(),culto:"",membros:[{nome:"",funcao:""}]});
   const addM=()=>setForm(f=>({...f,membros:[...f.membros,{nome:"",funcao:""}]}));
   const updM=(i,k,v)=>setForm(f=>({...f,membros:f.membros.map((m,idx)=>idx===i?{...m,[k]:v}:m)}));
   const remM=i=>setForm(f=>({...f,membros:f.membros.filter((_,idx)=>idx!==i)}));
   const save=()=>{if(!form.culto)return;setData(d=>({...d,escala:[...d.escala,{...form,id:uid()}]}));setForm({data:today(),culto:"",membros:[{nome:"",funcao:""}]});setModal(false);};
-  const del=id=>setData(d=>({...d,escala:d.escala.filter(x=>x.id!==id)}));
+  const del=id=>requireAdmin(()=>setData(d=>({...d,escala:d.escala.filter(x=>x.id!==id)})));
   return (
     <div>
-      <SectionHeader title="Escala da Equipe" icon="📅" action={<Btn onClick={()=>setModal(true)}>+ Nova escala</Btn>}/>
-      {data.escala.length===0 && <Empty msg="Nenhuma escala cadastrada."/>}
+      <SH title="Escala da Equipe" icon="📅" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Nova escala</Btn>}/>
+      {data.escala.length===0&&<Empty msg="Nenhuma escala cadastrada."/>}
       <div style={{display:"flex",flexDirection:"column",gap:14}}>
         {data.escala.sort((a,b)=>a.data<b.data?-1:1).map(e=>(
           <Card key={e.id}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
-              <div>
-                <div style={{fontSize:13,color:C.muted,fontWeight:600}}>{fmtDate(e.data)}</div>
-                <div style={{fontWeight:800,color:C.navy,fontSize:16}}>{e.culto}</div>
-              </div>
-              <Btn small variant="danger" onClick={()=>del(e.id)}>✕</Btn>
+              <div><div style={{fontSize:13,color:C.muted,fontWeight:600}}>{fmtDate(e.data)}</div><div style={{fontWeight:800,color:C.navy,fontSize:16}}>{e.culto}</div></div>
+              {isAdmin&&<Btn small variant="danger" onClick={()=>del(e.id)}>✕</Btn>}
             </div>
             <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
               {e.membros.map((m,i)=>(
@@ -224,7 +283,7 @@ function Escala({data,setData}) {
           </Card>
         ))}
       </div>
-      {modal && <Modal title="Nova Escala" onClose={()=>setModal(false)}>
+      {modal&&<Modal title="Nova Escala" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Input label="Data" type="date" value={form.data} onChange={v=>setForm(f=>({...f,data:v}))}/>
@@ -241,44 +300,39 @@ function Escala({data,setData}) {
             ))}
             <Btn small variant="ghost" onClick={addM}>+ Membro</Btn>
           </div>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn>
-            <Btn onClick={save}>Salvar</Btn>
-          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn><Btn onClick={save}>Salvar</Btn></div>
         </div>
       </Modal>}
     </div>
   );
 }
 
-function Ensaios({data,setData}) {
+function Ensaios({data,setData,isAdmin,requireAdmin}) {
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({data:today(),hora:"18:00",local:"Igreja",musicas:"",obs:""});
   const save=()=>{if(!form.data)return;setData(d=>({...d,ensaios:[...d.ensaios,{...form,id:uid()}]}));setForm({data:today(),hora:"18:00",local:"Igreja",musicas:"",obs:""});setModal(false);};
-  const del=id=>setData(d=>({...d,ensaios:d.ensaios.filter(x=>x.id!==id)}));
+  const del=id=>requireAdmin(()=>setData(d=>({...d,ensaios:d.ensaios.filter(x=>x.id!==id)})));
   return (
     <div>
-      <SectionHeader title="Ensaios" icon="🎸" action={<Btn onClick={()=>setModal(true)}>+ Novo ensaio</Btn>}/>
-      {data.ensaios.length===0 && <Empty msg="Nenhum ensaio cadastrado."/>}
+      <SH title="Ensaios" icon="🎸" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Novo ensaio</Btn>}/>
+      {data.ensaios.length===0&&<Empty msg="Nenhum ensaio cadastrado."/>}
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
         {data.ensaios.sort((a,b)=>a.data<b.data?-1:1).map(e=>(
           <Card key={e.id}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
               <div style={{flex:1}}>
                 <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8,flexWrap:"wrap"}}>
-                  <Badge label={fmtDate(e.data)} color={C.navy}/>
-                  <Badge label={e.hora} color={C.accent}/>
-                  <Badge label={e.local} color={C.green}/>
+                  <Badge label={fmtDate(e.data)} color={C.navy}/><Badge label={e.hora} color={C.accent}/><Badge label={e.local} color={C.green}/>
                 </div>
-                {e.musicas && <div style={{fontSize:13,color:C.text,marginBottom:4}}><strong>Músicas:</strong> {e.musicas}</div>}
-                {e.obs && <div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>📝 {e.obs}</div>}
+                {e.musicas&&<div style={{fontSize:13,color:C.text,marginBottom:4}}><strong>Músicas:</strong> {e.musicas}</div>}
+                {e.obs&&<div style={{fontSize:13,color:C.muted,fontStyle:"italic"}}>📝 {e.obs}</div>}
               </div>
-              <Btn small variant="danger" onClick={()=>del(e.id)}>✕</Btn>
+              {isAdmin&&<Btn small variant="danger" onClick={()=>del(e.id)}>✕</Btn>}
             </div>
           </Card>
         ))}
       </div>
-      {modal && <Modal title="Novo Ensaio" onClose={()=>setModal(false)}>
+      {modal&&<Modal title="Novo Ensaio" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Input label="Data" type="date" value={form.data} onChange={v=>setForm(f=>({...f,data:v}))}/>
@@ -287,17 +341,14 @@ function Ensaios({data,setData}) {
           <Input label="Local" value={form.local} onChange={v=>setForm(f=>({...f,local:v}))}/>
           <Textarea label="Músicas a ensaiar" value={form.musicas} onChange={v=>setForm(f=>({...f,musicas:v}))} rows={2}/>
           <Textarea label="Observações" value={form.obs} onChange={v=>setForm(f=>({...f,obs:v}))} rows={2}/>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn>
-            <Btn onClick={save}>Salvar</Btn>
-          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn><Btn onClick={save}>Salvar</Btn></div>
         </div>
       </Modal>}
     </div>
   );
 }
 
-function Setlist({data,setData}) {
+function Setlist({data,setData,isAdmin,requireAdmin}) {
   const [modal,setModal]=useState(false);
   const [view,setView]=useState(null);
   const [form,setForm]=useState({data:today(),culto:"",musicas:[{nome:"",tom:"",tempo:""}]});
@@ -305,12 +356,12 @@ function Setlist({data,setData}) {
   const updM=(i,k,v)=>setForm(f=>({...f,musicas:f.musicas.map((m,idx)=>idx===i?{...m,[k]:v}:m)}));
   const remM=i=>setForm(f=>({...f,musicas:f.musicas.filter((_,idx)=>idx!==i)}));
   const save=()=>{if(!form.culto)return;setData(d=>({...d,setlist:[...d.setlist,{...form,id:uid()}]}));setForm({data:today(),culto:"",musicas:[{nome:"",tom:"",tempo:""}]});setModal(false);};
-  const del=id=>setData(d=>({...d,setlist:d.setlist.filter(x=>x.id!==id)}));
-  const tColor=t=>({"entrada":"#2d5a9e","adoração":C.green,"ministração":"#9B59B6","oferta":C.gold,"encerramento":C.muted}[t]||C.muted);
+  const del=id=>requireAdmin(()=>setData(d=>({...d,setlist:d.setlist.filter(x=>x.id!==id)})));
+  const tC=t=>({"entrada":"#2d5a9e","adoração":C.green,"ministração":"#9B59B6","oferta":C.gold,"encerramento":C.muted}[t]||C.muted);
   return (
     <div>
-      <SectionHeader title="Setlist Culto" icon="📋" action={<Btn onClick={()=>setModal(true)}>+ Novo setlist</Btn>}/>
-      {data.setlist.length===0 && <Empty msg="Nenhum setlist cadastrado."/>}
+      <SH title="Setlist Culto" icon="📋" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Novo setlist</Btn>}/>
+      {data.setlist.length===0&&<Empty msg="Nenhum setlist cadastrado."/>}
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
         {data.setlist.sort((a,b)=>a.data<b.data?-1:1).map(s=>(
           <Card key={s.id}>
@@ -322,26 +373,23 @@ function Setlist({data,setData}) {
               </div>
               <div style={{display:"flex",gap:8}}>
                 <Btn small variant="ghost" onClick={()=>setView(s)}>Ver</Btn>
-                <Btn small variant="danger" onClick={()=>del(s.id)}>✕</Btn>
+                {isAdmin&&<Btn small variant="danger" onClick={()=>del(s.id)}>✕</Btn>}
               </div>
             </div>
           </Card>
         ))}
       </div>
-      {view && <Modal title={`Setlist — ${view.culto}`} onClose={()=>setView(null)}>
+      {view&&<Modal title={`Setlist — ${view.culto}`} onClose={()=>setView(null)}>
         <div style={{fontSize:13,color:C.muted,marginBottom:16}}>{fmtDate(view.data)}</div>
         {view.musicas.map((m,i)=>(
           <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:`1px solid ${C.border}`}}>
             <span style={{color:C.muted,fontSize:13,minWidth:20}}>{i+1}.</span>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:700,color:C.text}}>{m.nome}</div>
-              {m.tom && <div style={{fontSize:12,color:C.muted}}>Tom: {m.tom}</div>}
-            </div>
-            {m.tempo && <Badge label={m.tempo} color={tColor(m.tempo)}/>}
+            <div style={{flex:1}}><div style={{fontWeight:700,color:C.text}}>{m.nome}</div>{m.tom&&<div style={{fontSize:12,color:C.muted}}>Tom: {m.tom}</div>}</div>
+            {m.tempo&&<Badge label={m.tempo} color={tC(m.tempo)}/>}
           </div>
         ))}
       </Modal>}
-      {modal && <Modal title="Novo Setlist" onClose={()=>setModal(false)}>
+      {modal&&<Modal title="Novo Setlist" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <Input label="Data" type="date" value={form.data} onChange={v=>setForm(f=>({...f,data:v}))}/>
@@ -359,88 +407,78 @@ function Setlist({data,setData}) {
             ))}
             <Btn small variant="ghost" onClick={addM}>+ Música</Btn>
           </div>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn>
-            <Btn onClick={save}>Salvar</Btn>
-          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn><Btn onClick={save}>Salvar</Btn></div>
         </div>
       </Modal>}
     </div>
   );
 }
 
-function Vocal({data,setData}) {
+function Vocal({data,setData,isAdmin,requireAdmin}) {
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({membro:"",extensao:"",obs:"",aquecimento:""});
   const save=()=>{if(!form.membro)return;setData(d=>({...d,vocal:[...d.vocal,{...form,id:uid()}]}));setForm({membro:"",extensao:"",obs:"",aquecimento:""});setModal(false);};
-  const del=id=>setData(d=>({...d,vocal:d.vocal.filter(x=>x.id!==id)}));
+  const del=id=>requireAdmin(()=>setData(d=>({...d,vocal:d.vocal.filter(x=>x.id!==id)})));
   return (
     <div>
-      <SectionHeader title="Área Vocal" icon="🎤" action={<Btn onClick={()=>setModal(true)}>+ Adicionar</Btn>}/>
-      {data.vocal.length===0 && <Empty msg="Nenhum perfil vocal cadastrado."/>}
+      <SH title="Área Vocal" icon="🎤" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Adicionar</Btn>}/>
+      {data.vocal.length===0&&<Empty msg="Nenhum perfil vocal cadastrado."/>}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:14}}>
         {data.vocal.map(v=>(
           <Card key={v.id}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
                 <div style={{background:C.soft,width:40,height:40,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🎤</div>
-                <div>
-                  <div style={{fontWeight:800,color:C.navy}}>{v.membro}</div>
-                  <div style={{fontSize:12,color:C.accent}}>{v.extensao}</div>
-                </div>
+                <div><div style={{fontWeight:800,color:C.navy}}>{v.membro}</div><div style={{fontSize:12,color:C.accent}}>{v.extensao}</div></div>
               </div>
-              <Btn small variant="danger" onClick={()=>del(v.id)}>✕</Btn>
+              {isAdmin&&<Btn small variant="danger" onClick={()=>del(v.id)}>✕</Btn>}
             </div>
-            {v.obs && <div style={{background:C.soft,borderRadius:8,padding:"10px 12px",fontSize:13,color:C.text,marginBottom:8}}>📝 {v.obs}</div>}
-            {v.aquecimento && <div style={{borderLeft:`3px solid ${C.green}`,paddingLeft:10,fontSize:12,color:C.muted}}><strong style={{color:C.green}}>Aquecimento:</strong> {v.aquecimento}</div>}
+            {v.obs&&<div style={{background:C.soft,borderRadius:8,padding:"10px 12px",fontSize:13,color:C.text,marginBottom:8}}>📝 {v.obs}</div>}
+            {v.aquecimento&&<div style={{borderLeft:`3px solid ${C.green}`,paddingLeft:10,fontSize:12,color:C.muted}}><strong style={{color:C.green}}>Aquecimento:</strong> {v.aquecimento}</div>}
           </Card>
         ))}
       </div>
-      {modal && <Modal title="Perfil Vocal" onClose={()=>setModal(false)}>
+      {modal&&<Modal title="Perfil Vocal" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Input label="Nome do membro" value={form.membro} onChange={v=>setForm(f=>({...f,membro:v}))}/>
           <Input label="Extensão vocal" value={form.extensao} onChange={v=>setForm(f=>({...f,extensao:v}))} placeholder="Ex: Mezzo-soprano (A2–G5)"/>
           <Textarea label="Observações" value={form.obs} onChange={v=>setForm(f=>({...f,obs:v}))} rows={2}/>
           <Textarea label="Rotina de aquecimento" value={form.aquecimento} onChange={v=>setForm(f=>({...f,aquecimento:v}))} rows={2}/>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn>
-            <Btn onClick={save}>Salvar</Btn>
-          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn><Btn onClick={save}>Salvar</Btn></div>
         </div>
       </Modal>}
     </div>
   );
 }
 
-function Comunicados({data,setData}) {
+function Comunicados({data,setData,isAdmin,requireAdmin}) {
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({titulo:"",data:today(),prioridade:"media",texto:""});
   const save=()=>{if(!form.titulo)return;setData(d=>({...d,comunicados:[{...form,id:uid()},...d.comunicados]}));setForm({titulo:"",data:today(),prioridade:"media",texto:""});setModal(false);};
-  const del=id=>setData(d=>({...d,comunicados:d.comunicados.filter(x=>x.id!==id)}));
-  const pColor={alta:C.red,media:C.gold,baixa:C.green};
-  const pLabel={alta:"🔴 Alta",media:"🟡 Média",baixa:"🟢 Baixa"};
+  const del=id=>requireAdmin(()=>setData(d=>({...d,comunicados:d.comunicados.filter(x=>x.id!==id)})));
+  const pC={alta:C.red,media:C.gold,baixa:C.green};
+  const pL={alta:"🔴 Alta",media:"🟡 Média",baixa:"🟢 Baixa"};
   return (
     <div>
-      <SectionHeader title="Comunicados" icon="📣" action={<Btn onClick={()=>setModal(true)}>+ Novo</Btn>}/>
-      {data.comunicados.length===0 && <Empty msg="Nenhum comunicado."/>}
+      <SH title="Comunicados" icon="📣" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Novo</Btn>}/>
+      {data.comunicados.length===0&&<Empty msg="Nenhum comunicado."/>}
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
         {data.comunicados.map(c=>(
-          <Card key={c.id} style={{borderLeft:`4px solid ${pColor[c.prioridade]}`}}>
+          <Card key={c.id} style={{borderLeft:`4px solid ${pC[c.prioridade]}`}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
               <div style={{flex:1}}>
                 <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:6,flexWrap:"wrap"}}>
-                  <span style={{fontWeight:800,color:C.navy,fontSize:15}}>{c.titulo}</span>
-                  <Badge label={pLabel[c.prioridade]} color={pColor[c.prioridade]}/>
+                  <span style={{fontWeight:800,color:C.navy,fontSize:15}}>{c.titulo}</span><Badge label={pL[c.prioridade]} color={pC[c.prioridade]}/>
                 </div>
                 <div style={{fontSize:12,color:C.muted,marginBottom:8}}>{fmtDate(c.data)}</div>
                 <div style={{fontSize:14,color:C.text,lineHeight:1.6}}>{c.texto}</div>
               </div>
-              <Btn small variant="danger" onClick={()=>del(c.id)}>✕</Btn>
+              {isAdmin&&<Btn small variant="danger" onClick={()=>del(c.id)}>✕</Btn>}
             </div>
           </Card>
         ))}
       </div>
-      {modal && <Modal title="Novo Comunicado" onClose={()=>setModal(false)}>
+      {modal&&<Modal title="Novo Comunicado" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Input label="Título" value={form.titulo} onChange={v=>setForm(f=>({...f,titulo:v}))}/>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -448,46 +486,43 @@ function Comunicados({data,setData}) {
             <Select label="Prioridade" value={form.prioridade} onChange={v=>setForm(f=>({...f,prioridade:v}))} options={[{value:"alta",label:"🔴 Alta"},{value:"media",label:"🟡 Média"},{value:"baixa",label:"🟢 Baixa"}]}/>
           </div>
           <Textarea label="Texto" value={form.texto} onChange={v=>setForm(f=>({...f,texto:v}))} rows={4}/>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn>
-            <Btn onClick={save}>Publicar</Btn>
-          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn><Btn onClick={save}>Publicar</Btn></div>
         </div>
       </Modal>}
     </div>
   );
 }
 
-function Devocionais({data,setData}) {
+function Devocionais({data,setData,isAdmin,requireAdmin}) {
   const [modal,setModal]=useState(false);
   const [view,setView]=useState(null);
   const [form,setForm]=useState({titulo:"",referencia:"",data:today(),texto:""});
   const save=()=>{if(!form.titulo)return;setData(d=>({...d,devocionais:[{...form,id:uid()},...d.devocionais]}));setForm({titulo:"",referencia:"",data:today(),texto:""});setModal(false);};
-  const del=id=>setData(d=>({...d,devocionais:d.devocionais.filter(x=>x.id!==id)}));
+  const del=id=>requireAdmin(()=>setData(d=>({...d,devocionais:d.devocionais.filter(x=>x.id!==id)})));
   return (
     <div>
-      <SectionHeader title="Devocionais" icon="📖" action={<Btn onClick={()=>setModal(true)}>+ Novo</Btn>}/>
-      {data.devocionais.length===0 && <Empty msg="Nenhum devocional cadastrado."/>}
+      <SH title="Devocionais" icon="📖" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Novo</Btn>}/>
+      {data.devocionais.length===0&&<Empty msg="Nenhum devocional cadastrado."/>}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:14}}>
         {data.devocionais.map(d=>(
           <Card key={d.id} style={{borderTop:`3px solid ${C.navy}`}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
               <div style={{fontSize:12,color:C.muted}}>{fmtDate(d.data)}</div>
-              <Btn small variant="danger" onClick={()=>del(d.id)}>✕</Btn>
+              {isAdmin&&<Btn small variant="danger" onClick={()=>del(d.id)}>✕</Btn>}
             </div>
             <div style={{fontWeight:800,color:C.navy,fontSize:15,marginBottom:4}}>{d.titulo}</div>
-            {d.referencia && <div style={{fontSize:12,color:C.accent,marginBottom:10,fontStyle:"italic"}}>📖 {d.referencia}</div>}
+            {d.referencia&&<div style={{fontSize:12,color:C.accent,marginBottom:10,fontStyle:"italic"}}>📖 {d.referencia}</div>}
             <div style={{fontSize:13,color:C.muted,lineHeight:1.6,display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{d.texto}</div>
             <button onClick={()=>setView(d)} style={{background:"none",border:"none",color:C.accent,fontSize:12,cursor:"pointer",marginTop:10,padding:0,fontWeight:600}}>Ler completo →</button>
           </Card>
         ))}
       </div>
-      {view && <Modal title={view.titulo} onClose={()=>setView(null)}>
+      {view&&<Modal title={view.titulo} onClose={()=>setView(null)}>
         <div style={{fontSize:12,color:C.muted,marginBottom:4}}>{fmtDate(view.data)}</div>
-        {view.referencia && <div style={{color:C.accent,fontStyle:"italic",marginBottom:16,fontSize:14}}>📖 {view.referencia}</div>}
+        {view.referencia&&<div style={{color:C.accent,fontStyle:"italic",marginBottom:16,fontSize:14}}>📖 {view.referencia}</div>}
         <div style={{fontSize:15,color:C.text,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{view.texto}</div>
       </Modal>}
-      {modal && <Modal title="Novo Devocional" onClose={()=>setModal(false)}>
+      {modal&&<Modal title="Novo Devocional" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Input label="Título" value={form.titulo} onChange={v=>setForm(f=>({...f,titulo:v}))}/>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -495,21 +530,18 @@ function Devocionais({data,setData}) {
             <Input label="Data" type="date" value={form.data} onChange={v=>setForm(f=>({...f,data:v}))}/>
           </div>
           <Textarea label="Reflexão" value={form.texto} onChange={v=>setForm(f=>({...f,texto:v}))} rows={6}/>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn>
-            <Btn onClick={save}>Publicar</Btn>
-          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn><Btn onClick={save}>Publicar</Btn></div>
         </div>
       </Modal>}
     </div>
   );
 }
 
-function Aniversariantes({data,setData}) {
+function Aniversariantes({data,setData,isAdmin,requireAdmin}) {
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({nome:"",data:"",funcao:"",contato:""});
   const save=()=>{if(!form.nome||!form.data)return;setData(d=>({...d,aniversariantes:[...d.aniversariantes,{...form,id:uid()}]}));setForm({nome:"",data:"",funcao:"",contato:""});setModal(false);};
-  const del=id=>setData(d=>({...d,aniversariantes:d.aniversariantes.filter(x=>x.id!==id)}));
+  const del=id=>requireAdmin(()=>setData(d=>({...d,aniversariantes:d.aniversariantes.filter(x=>x.id!==id)})));
   const now=new Date(); const thisMonth=now.getMonth()+1;
   const sorted=[...data.aniversariantes].sort((a,b)=>{const[,am,ad]=a.data.split("-").map(Number);const[,bm,bd]=b.data.split("-").map(Number);return am!==bm?am-bm:ad-bd;});
   const mesAtual=sorted.filter(a=>parseInt(a.data.split("-")[1])===thisMonth);
@@ -525,24 +557,24 @@ function Aniversariantes({data,setData}) {
         </div>
       </div>
       <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        {isTM && <Badge label="Este mês 🎂" color={C.gold}/>}
-        <Btn small variant="danger" onClick={()=>del(a.id)}>✕</Btn>
+        {isTM&&<Badge label="Este mês 🎂" color={C.gold}/>}
+        {isAdmin&&<Btn small variant="danger" onClick={()=>del(a.id)}>✕</Btn>}
       </div>
     </Card>
   );};
   return (
     <div>
-      <SectionHeader title="Aniversariantes" icon="🎂" action={<Btn onClick={()=>setModal(true)}>+ Adicionar</Btn>}/>
-      {data.aniversariantes.length===0 && <Empty msg="Nenhum aniversariante cadastrado."/>}
-      {mesAtual.length>0 && <div style={{marginBottom:24}}>
+      <SH title="Aniversariantes" icon="🎂" action={<Btn onClick={()=>requireAdmin(()=>setModal(true))}>+ Adicionar</Btn>}/>
+      {data.aniversariantes.length===0&&<Empty msg="Nenhum aniversariante cadastrado."/>}
+      {mesAtual.length>0&&<div style={{marginBottom:24}}>
         <div style={{fontSize:12,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>🎂 Aniversariantes do mês</div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>{mesAtual.map(a=><BCard key={a.id} a={a}/>)}</div>
       </div>}
-      {outros.length>0 && <div>
+      {outros.length>0&&<div>
         <div style={{fontSize:12,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Todos</div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>{outros.map(a=><BCard key={a.id} a={a}/>)}</div>
       </div>}
-      {modal && <Modal title="Novo Aniversariante" onClose={()=>setModal(false)}>
+      {modal&&<Modal title="Novo Aniversariante" onClose={()=>setModal(false)}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Input label="Nome" value={form.nome} onChange={v=>setForm(f=>({...f,nome:v}))}/>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -550,10 +582,7 @@ function Aniversariantes({data,setData}) {
             <Input label="Função no ministério" value={form.funcao} onChange={v=>setForm(f=>({...f,funcao:v}))}/>
           </div>
           <Input label="Contato (WhatsApp)" value={form.contato} onChange={v=>setForm(f=>({...f,contato:v}))} placeholder="(51) 9 9999-9999"/>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn>
-            <Btn onClick={save}>Salvar</Btn>
-          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><Btn variant="ghost" onClick={()=>setModal(false)}>Cancelar</Btn><Btn onClick={save}>Salvar</Btn></div>
         </div>
       </Modal>}
     </div>
@@ -562,32 +591,43 @@ function Aniversariantes({data,setData}) {
 
 function App() {
   const [active,setActive]=useState("integrantes");
-  const [data,setData]=useState(initData);
+  const [data,setData]=useState(loadData);
   const [isMobile,setIsMobile]=useState(window.innerWidth<768);
   const [menuOpen,setMenuOpen]=useState(false);
+  const [isAdmin,setIsAdmin]=useState(false);
+  const [showLogin,setShowLogin]=useState(false);
+  const [pendingAction,setPendingAction]=useState(null);
 
-  useEffect(()=>{
-    const handler=()=>setIsMobile(window.innerWidth<768);
-    window.addEventListener("resize",handler);
-    return ()=>window.removeEventListener("resize",handler);
-  },[]);
+  const requireAdmin=(fn)=>{ if(isAdmin){fn();}else{setPendingAction(()=>fn);setShowLogin(true);} };
 
-  const modules={integrantes:Integrantes,playlist:Playlist,escala:Escala,ensaios:Ensaios,setlist:Setlist,vocal:Vocal,comunicados:Comunicados,devocionais:Devocionais,aniversariantes:Aniversariantes};
+  useEffect(()=>{ try{localStorage.setItem("hopemusic_data",JSON.stringify(data));}catch(e){} },[data]);
+  useEffect(()=>{ const h=()=>setIsMobile(window.innerWidth<768); window.addEventListener("resize",h); return ()=>window.removeEventListener("resize",h); },[]);
+
+  const modules={integrantes:Integrantes,repertorio:Repertorio,playlist:Playlist,escala:Escala,ensaios:Ensaios,setlist:Setlist,vocal:Vocal,comunicados:Comunicados,devocionais:Devocionais,aniversariantes:Aniversariantes};
   const Module=modules[active];
   const activeNav=NAV.find(n=>n.id===active);
+  const adminProps={isAdmin,requireAdmin};
+
+  const LoginComp = showLogin && <LoginModal onClose={()=>{setShowLogin(false);setPendingAction(null);}} onSuccess={()=>{setIsAdmin(true);if(pendingAction){pendingAction();setPendingAction(null);}}}/>;
 
   if(isMobile) return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",fontFamily:"'Segoe UI',sans-serif",background:C.offwhite}}>
+      {LoginComp}
       <div style={{background:C.navy,padding:"14px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
         <div>
           <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",letterSpacing:2,textTransform:"uppercase"}}>Hope Music</div>
           <div style={{fontSize:15,fontWeight:800,color:"#fff"}}>{activeNav?.icon} {activeNav?.label}</div>
         </div>
-        <button onClick={()=>setMenuOpen(!menuOpen)} style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",fontSize:20,cursor:"pointer"}}>☰</button>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <button onClick={()=>isAdmin?setIsAdmin(false):setShowLogin(true)} style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:8,padding:"6px 12px",color:isAdmin?"#7effa0":"#fff",fontSize:16,cursor:"pointer"}} title={isAdmin?"Bloquear":"Entrar como líder"}>
+            {isAdmin?"🔓":"🔒"}
+          </button>
+          <button onClick={()=>setMenuOpen(!menuOpen)} style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",fontSize:20,cursor:"pointer"}}>☰</button>
+        </div>
       </div>
-      {menuOpen && (
+      {menuOpen&&(
         <div style={{position:"fixed",inset:0,zIndex:998}} onClick={()=>setMenuOpen(false)}>
-          <div style={{position:"absolute",top:58,left:0,right:0,background:C.navy,zIndex:999,padding:"8px 10px",boxShadow:"0 8px 24px rgba(0,0,0,0.3)"}} onClick={e=>e.stopPropagation()}>
+          <div style={{position:"absolute",top:58,left:0,right:0,background:C.navy,zIndex:999,padding:"8px 10px",boxShadow:"0 8px 24px rgba(0,0,0,0.3)",maxHeight:"80vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
             {NAV.map(n=>(
               <button key={n.id} onClick={()=>{setActive(n.id);setMenuOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"12px 14px",borderRadius:10,border:"none",background:active===n.id?"rgba(255,255,255,0.15)":"transparent",color:active===n.id?"#fff":"rgba(255,255,255,0.6)",fontSize:14,fontWeight:active===n.id?700:400,cursor:"pointer",marginBottom:2,textAlign:"left"}}>
                 <span style={{fontSize:18}}>{n.icon}</span>{n.label}
@@ -596,18 +636,20 @@ function App() {
           </div>
         </div>
       )}
-      <main style={{flex:1,overflowY:"auto",padding:"20px 16px"}}>
-        <Module data={data} setData={setData}/>
-      </main>
+      <main style={{flex:1,overflowY:"auto",padding:"20px 16px"}}><Module data={data} setData={setData} {...adminProps}/></main>
     </div>
   );
 
   return (
     <div style={{display:"flex",height:"100vh",fontFamily:"'Segoe UI',sans-serif",background:C.offwhite,overflow:"hidden"}}>
+      {LoginComp}
       <aside style={{width:220,background:C.navy,display:"flex",flexDirection:"column",flexShrink:0}}>
         <div style={{padding:"24px 20px 16px"}}>
           <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",letterSpacing:3,textTransform:"uppercase",marginBottom:4}}>Hope Music</div>
           <div style={{fontSize:16,fontWeight:800,color:"#fff"}}>Ministério de Louvor</div>
+          <button onClick={()=>isAdmin?setIsAdmin(false):setShowLogin(true)} style={{marginTop:10,background:"rgba(255,255,255,0.1)",border:"none",borderRadius:8,padding:"6px 12px",color:isAdmin?"#7effa0":"rgba(255,255,255,0.5)",fontSize:12,cursor:"pointer",fontWeight:600,width:"100%",textAlign:"left"}}>
+            {isAdmin?"🔓 Líder conectado":"🔒 Entrar como líder"}
+          </button>
         </div>
         <nav style={{flex:1,padding:"8px 10px",overflowY:"auto"}}>
           {NAV.map(n=>(
@@ -618,9 +660,7 @@ function App() {
         </nav>
         <div style={{padding:"16px 20px",borderTop:"1px solid rgba(255,255,255,0.08)",fontSize:11,color:"rgba(255,255,255,0.3)"}}>Hope Music © 2025</div>
       </aside>
-      <main style={{flex:1,overflowY:"auto",padding:"32px 36px"}}>
-        <Module data={data} setData={setData}/>
-      </main>
+      <main style={{flex:1,overflowY:"auto",padding:"32px 36px"}}><Module data={data} setData={setData} {...adminProps}/></main>
     </div>
   );
 }
